@@ -19,6 +19,7 @@ import type { DbConnection } from '@/module_bindings';
 import type { Participant } from '@/module_bindings/types';
 import { PeerConnectionManager } from '@/lib/webrtc';
 import { SignalingManager } from '@/lib/signaling';
+import { getTurnCredentials } from '@/lib/turn';
 
 export function useWebRTC(
   db: DbConnection | null,
@@ -46,6 +47,8 @@ export function useWebRTC(
     if (!db || !identity || roomId == null) return;
 
     const pcm = new PeerConnectionManager();
+    const { iceServers } = getTurnCredentials();
+    if (iceServers.length > 0) pcm.setIceServers(iceServers);
     pcmRef.current = pcm;
 
     pcm.onRemoteStream = (hex, stream) => {

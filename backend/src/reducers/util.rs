@@ -2,6 +2,18 @@ use spacetimedb::{ReducerContext, Identity};
 
 use crate::tables::participants::{Participant, participant};
 
+/// Sanitize a display name: strip leading/trailing whitespace, remove ASCII
+/// control characters, and truncate to 50 characters.
+pub fn sanitize_display_name(name: &str) -> String {
+    name.chars()
+        .filter(|c| !c.is_ascii_control())
+        .collect::<String>()
+        .trim()
+        .chars()
+        .take(50)
+        .collect()
+}
+
 /// Returns the caller's active participant row for `room_id`, or an error.
 /// "Active" means `left_at` is None — i.e. the participant has not left.
 pub fn require_active_participant(

@@ -7,7 +7,7 @@ export function VideoPreview({ preview }: { preview: LocalPreview }) {
   const showVideo = status === 'ready' && videoEnabled;
 
   return (
-    <div className="flex-1 relative rounded-2xl overflow-hidden bg-gray-900 aspect-video md:aspect-auto md:min-h-72">
+    <div className="flex-1 relative rounded-2xl overflow-hidden bg-gray-900 aspect-video sm:min-h-64 md:aspect-auto md:min-h-72">
       {/* Live video — always rendered so the ref is attached; hidden when not live */}
       <video
         ref={videoRef}

@@ -63,7 +63,7 @@ function ControlButton({
   disabled = false,
 }: ControlButtonProps) {
   const base =
-    'relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
+    'relative flex flex-col items-center gap-1 px-3 py-2.5 sm:py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 min-w-[44px] min-h-[44px] justify-center';
 
   const color = danger
     ? 'bg-red-600 hover:bg-red-500 text-white'

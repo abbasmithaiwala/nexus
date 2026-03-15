@@ -6,6 +6,7 @@ use crate::tables::{
     participants::{Participant, MediaState, participant},
     room_events::{RoomEvent, EventType, room_event},
 };
+use crate::reducers::util::sanitize_display_name;
 
 fn random_chars(ctx: &ReducerContext, n: usize) -> String {
     const CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
@@ -39,7 +40,8 @@ fn upsert_user(ctx: &ReducerContext, display_name: String) {
 
 #[reducer]
 pub fn create_room(ctx: &ReducerContext, display_name: String) -> Result<(), String> {
-    if display_name.trim().is_empty() {
+    let display_name = sanitize_display_name(&display_name);
+    if display_name.is_empty() {
         return Err("Display name cannot be empty".to_string());
     }
 
@@ -94,8 +96,12 @@ pub fn create_room(ctx: &ReducerContext, display_name: String) -> Result<(), Str
 
 #[reducer]
 pub fn join_room(ctx: &ReducerContext, room_code: String, display_name: String) -> Result<(), String> {
-    if display_name.trim().is_empty() {
+    let display_name = sanitize_display_name(&display_name);
+    if display_name.is_empty() {
         return Err("Display name cannot be empty".to_string());
+    }
+    if room_code.len() > 20 {
+        return Err("Invalid room code".to_string());
     }
 
     let room = ctx.db.room().room_code().find(&room_code)

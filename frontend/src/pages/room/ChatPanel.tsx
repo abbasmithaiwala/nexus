@@ -4,7 +4,7 @@
  * Layout only. All data logic lives in useChatMessages.
  */
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Send, X } from 'lucide-react';
 import type { DbConnection } from '@/module_bindings';
 import { useChatMessages, formatMessageTime } from '@/hooks/useChatMessages';
@@ -89,9 +89,17 @@ export interface ChatPanelProps {
   onNewMessage?: () => void;
 }
 
+const MAX_VISIBLE = 100;
+
 export function ChatPanel({ db, roomId, myDisplayName, onClose, onNewMessage }: ChatPanelProps) {
   const { messages, send } = useChatMessages({ db, roomId, myDisplayName, onNewMessage });
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Only render the last MAX_VISIBLE messages to avoid DOM bloat.
+  const visibleMessages = useMemo(
+    () => (messages.length > MAX_VISIBLE ? messages.slice(-MAX_VISIBLE) : messages),
+    [messages],
+  );
 
   // Auto-scroll whenever messages change
   const prevLenRef = useRef(0);
@@ -120,7 +128,14 @@ export function ChatPanel({ db, roomId, myDisplayName, onClose, onNewMessage }: 
         {messages.length === 0 ? (
           <p className="text-gray-600 text-sm text-center mt-8">No messages yet. Say hi!</p>
         ) : (
-          messages.map((msg) => <ChatBubble key={msg.eventId} msg={msg} />)
+          <>
+            {messages.length > MAX_VISIBLE && (
+              <p className="text-gray-600 text-xs text-center py-1">
+                Showing last {MAX_VISIBLE} of {messages.length} messages
+              </p>
+            )}
+            {visibleMessages.map((msg) => <ChatBubble key={msg.eventId} msg={msg} />)}
+          </>
         )}
         <div ref={bottomRef} />
       </div>

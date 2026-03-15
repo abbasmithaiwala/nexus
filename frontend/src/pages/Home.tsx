@@ -16,7 +16,7 @@ const ROOM_CODE_PATTERN = /^[a-z]{3}-[a-z]{4}-[a-z]{3}$/;
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { db, isConnected, connectionError } = useSpacetime();
+  const { db, isConnected, connectionError, reconnectAttempt } = useSpacetime();
 
   const [displayName, setDisplayName] = useState(
     () => localStorage.getItem(STORAGE_KEYS.displayName) ?? '',
@@ -81,7 +81,7 @@ export function HomePage() {
         </p>
       </div>
 
-      {/* Connection loading state */}
+      {/* Connection loading / reconnect state */}
       {!isConnected && !connectionError && (
         <div className="flex items-center gap-2 text-gray-400 text-sm mb-6">
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -89,9 +89,16 @@ export function HomePage() {
         </div>
       )}
 
-      {connectionError && (
+      {!isConnected && connectionError && reconnectAttempt < 5 && (
+        <div className="flex items-center gap-2 text-yellow-400 text-sm mb-6">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Reconnecting… (attempt {reconnectAttempt} of 5)
+        </div>
+      )}
+
+      {connectionError && reconnectAttempt >= 5 && (
         <div className="mb-6 px-4 py-3 rounded-lg bg-red-900/40 border border-red-700 text-red-300 text-sm max-w-sm w-full text-center">
-          Connection error: {connectionError.message}
+          Could not connect: {connectionError.message}
         </div>
       )}
 

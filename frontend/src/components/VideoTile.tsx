@@ -12,7 +12,7 @@
  *  - mirrored?: boolean           — mirror the video (local camera)
  */
 
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { MicOff } from 'lucide-react';
 import type { FloatingReaction } from '@/hooks/useReactions';
 
@@ -41,7 +41,7 @@ function Initials({ name }: { name: string }) {
   );
 }
 
-export function VideoTile({
+export const VideoTile = memo(function VideoTile({
   stream,
   displayName,
   audioEnabled,
@@ -131,4 +131,4 @@ export function VideoTile({
       </div>
     </div>
   );
-}
+});
