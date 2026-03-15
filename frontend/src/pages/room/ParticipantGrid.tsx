@@ -15,6 +15,8 @@ interface ParticipantGridProps {
   participants: Participant[];
   localParticipant: Participant | undefined;
   localStream: MediaStream | null;
+  /** Remote MediaStreams keyed by identity hex string, provided by useWebRTC. */
+  remoteStreams: Map<string, MediaStream>;
   identity: Identity | undefined;
 }
 
@@ -22,6 +24,7 @@ export function ParticipantGrid({
   participants,
   localParticipant,
   localStream,
+  remoteStreams,
   identity,
 }: ParticipantGridProps) {
   const tiles = useMemo(() => {
@@ -44,20 +47,31 @@ export function ParticipantGrid({
     );
   }
 
+  // Find which tile index (if any) is screen sharing so VideoGrid can give it
+  // the prominent layout slot.
+  const screenShareIndex = tiles.findIndex(
+    ({ participant }) => participant.mediaState.isScreenSharing,
+  );
+
   return (
-    <VideoGrid>
-      {tiles.map(({ participant, isLocal }) => (
-        <VideoTile
-          key={participant.participantId.toString()}
-          stream={isLocal ? localStream : null}
-          displayName={participant.displayName}
-          audioEnabled={participant.mediaState.audioEnabled}
-          videoEnabled={participant.mediaState.videoEnabled}
-          isLocal={isLocal}
-          isHost={participant.isHost}
-          mirrored={isLocal}
-        />
-      ))}
+    <VideoGrid screenShareIndex={screenShareIndex >= 0 ? screenShareIndex : undefined}>
+      {tiles.map(({ participant, isLocal }) => {
+        const stream = isLocal
+          ? localStream
+          : remoteStreams.get(participant.identity.toHexString()) ?? null;
+        return (
+          <VideoTile
+            key={participant.participantId.toString()}
+            stream={stream}
+            displayName={participant.displayName}
+            audioEnabled={participant.mediaState.audioEnabled}
+            videoEnabled={participant.mediaState.videoEnabled}
+            isLocal={isLocal}
+            isHost={participant.isHost}
+            mirrored={isLocal}
+          />
+        );
+      })}
     </VideoGrid>
   );
 }

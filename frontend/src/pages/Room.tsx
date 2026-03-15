@@ -15,6 +15,7 @@ import { useRoomId } from '@/hooks/useRoomId';
 import { useParticipants } from '@/hooks/useParticipants';
 import { useRoomLifecycle } from '@/hooks/useRoomLifecycle';
 import { useMediaStateSync } from '@/hooks/useMediaStateSync';
+import { useWebRTC } from '@/hooks/useWebRTC';
 
 import { ControlsBar } from '@/components/ControlsBar';
 import { RoomHeader } from './room/RoomHeader';
@@ -29,6 +30,7 @@ export function RoomPage() {
   const roomId = useRoomId(db, roomCode);
   const participants = useParticipants(db, roomId);
   const { handleLeave, handleEndMeeting } = useRoomLifecycle(db, roomId, roomCode);
+  const remoteStreams = useWebRTC(db, identity, roomId, participants, local.stream);
 
   useMediaStateSync(db, roomId, {
     audioEnabled: local.audioEnabled,
@@ -68,6 +70,7 @@ export function RoomPage() {
             participants={participants}
             localParticipant={myParticipant}
             localStream={local.stream}
+            remoteStreams={remoteStreams}
             identity={identity}
           />
         </div>

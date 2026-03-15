@@ -6,6 +6,10 @@
  *  2 participants → side by side (2 columns)
  *  3–4            → 2×2 grid
  *  5+             → dynamic auto-fill wrap
+ *
+ * Screen share mode: when screenShareIndex is provided, that tile spans 2
+ * columns and is placed first, with the remaining thumbnails stacked in a
+ * single column on the right.
  */
 
 import type { ReactNode } from 'react';
@@ -13,6 +17,11 @@ import type { ReactNode } from 'react';
 interface VideoGridProps {
   /** Rendered VideoTile elements. */
   children: ReactNode[];
+  /**
+   * Index of the tile that is currently screen sharing.
+   * When set, that tile gets a prominent large-slot layout.
+   */
+  screenShareIndex?: number;
 }
 
 function gridClass(count: number): string {
@@ -24,9 +33,35 @@ function gridClass(count: number): string {
   return 'grid-cols-4';
 }
 
-export function VideoGrid({ children }: VideoGridProps) {
+export function VideoGrid({ children, screenShareIndex }: VideoGridProps) {
   const count = children.length;
 
+  // ── Screen share layout ────────────────────────────────────────────────────
+  // When someone is sharing their screen, show the screen tile prominently on
+  // the left and stack the other participant thumbnails in a narrow sidebar.
+  if (screenShareIndex !== undefined && count > 1) {
+    const screenTile = children[screenShareIndex];
+    const otherTiles = children.filter((_, i) => i !== screenShareIndex);
+
+    return (
+      <div className="flex gap-2 w-full h-full">
+        {/* Large screen-share tile */}
+        <div className="flex-1 min-h-0 min-w-0">
+          {screenTile}
+        </div>
+        {/* Thumbnail sidebar */}
+        <div className="flex flex-col gap-2 w-40 shrink-0 overflow-y-auto">
+          {otherTiles.map((tile, i) => (
+            <div key={i} className="aspect-video min-w-0 shrink-0">
+              {tile}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Normal grid layout ─────────────────────────────────────────────────────
   return (
     <div className={`grid gap-2 w-full h-full ${gridClass(count)}`}>
       {children.map((child, i) => (
