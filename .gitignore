@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+target/
+
+# SpaceTimeDB
+.spacetime/
+
+# Environment
+.env
+.env.local
+
+# Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
