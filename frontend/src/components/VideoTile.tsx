@@ -57,12 +57,15 @@ export const VideoTile = memo(function VideoTile({
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    if (stream && videoEnabled) {
+    if (stream) {
       el.srcObject = stream;
+      el.play().catch(() => {
+        // Autoplay may be blocked; the browser will play on first user interaction.
+      });
     } else {
       el.srcObject = null;
     }
-  }, [stream, videoEnabled]);
+  }, [stream]);
 
   return (
     <div

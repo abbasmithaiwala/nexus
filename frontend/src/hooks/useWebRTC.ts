@@ -42,6 +42,10 @@ export function useWebRTC(
   const participantsRef = useRef(participants);
   useEffect(() => { participantsRef.current = participants; }, [participants]);
 
+  /** Keep localStream in a ref so the manager-creation effect can read the latest value. */
+  const localStreamRef = useRef(localStream);
+  useEffect(() => { localStreamRef.current = localStream; }, [localStream]);
+
   // ── Create/destroy managers when db + identity + roomId are all ready ──────
   useEffect(() => {
     if (!db || !identity || roomId == null) return;
@@ -50,6 +54,11 @@ export function useWebRTC(
     const { iceServers } = getTurnCredentials();
     if (iceServers.length > 0) pcm.setIceServers(iceServers);
     pcmRef.current = pcm;
+
+    // Seed the PCM with any stream that was already acquired before managers were created.
+    if (localStreamRef.current) {
+      pcm.setLocalStream(localStreamRef.current);
+    }
 
     pcm.onRemoteStream = (hex, stream) => {
       setRemoteStreams((prev) => {
