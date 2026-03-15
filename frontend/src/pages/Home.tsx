@@ -9,25 +9,24 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Video, Link2, Loader2 } from 'lucide-react';
 import { useSpacetime } from '@/hooks/useSpacetime';
+import { STORAGE_KEYS } from '@/lib/constants';
 
 /** Room code format: xxx-xxxx-xxx */
 const ROOM_CODE_PATTERN = /^[a-z]{3}-[a-z]{4}-[a-z]{3}$/;
-
-const DISPLAY_NAME_KEY = 'nexus:display_name';
 
 export function HomePage() {
   const navigate = useNavigate();
   const { db, isConnected, connectionError } = useSpacetime();
 
   const [displayName, setDisplayName] = useState(
-    () => localStorage.getItem(DISPLAY_NAME_KEY) ?? '',
+    () => localStorage.getItem(STORAGE_KEYS.displayName) ?? '',
   );
   const [join, setJoin] = useState({ code: '', error: '' });
   const [create, setCreate] = useState({ loading: false, error: '' });
 
   function persistName(name: string) {
     setDisplayName(name);
-    localStorage.setItem(DISPLAY_NAME_KEY, name);
+    localStorage.setItem(STORAGE_KEYS.displayName, name);
   }
 
   async function handleNewMeeting() {
