@@ -58,12 +58,17 @@ export function LobbyPage() {
     setJoinError('');
     try {
       await db.reducers.joinRoom({ roomCode, displayName: name });
-      // Navigation unmounts this component, which stops the preview stream.
-      navigate(`/room/${roomCode}`);
     } catch (err) {
-      setJoining(false);
-      setJoinError(err instanceof Error ? err.message : 'Failed to join meeting.');
+      const msg = err instanceof Error ? err.message : '';
+      // Host already has a participant row from createRoom — treat as success.
+      if (!msg.includes('Already in this room')) {
+        setJoining(false);
+        setJoinError(msg || 'Failed to join meeting.');
+        return;
+      }
     }
+    // Navigation unmounts this component, which stops the preview stream.
+    navigate(`/room/${roomCode}`);
   }
 
   const canJoin = isConnected && !!displayName.trim() && !joining;

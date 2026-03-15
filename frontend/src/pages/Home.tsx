@@ -40,8 +40,14 @@ export function HomePage() {
     setCreate({ loading: true, error: '' });
 
     try {
+      // Snapshot existing room IDs before the reducer fires so we can detect the new one.
+      const existingIds = new Set(
+        [...db.db.room.iter()].map((r) => r.roomId.toString()),
+      );
+
       await db.reducers.createRoom({ displayName: name });
-      const roomCode = await waitForNewRoom(db);
+
+      const roomCode = await waitForNewRoom(db, existingIds);
       if (roomCode) {
         navigate(`/lobby/${roomCode}`);
       } else {
@@ -160,7 +166,7 @@ export function HomePage() {
                 value={join.code}
                 onChange={(e) => setJoin({ code: e.target.value, error: '' })}
                 placeholder="xxx-xxxx-xxx"
-                maxLength={11}
+                maxLength={12}
                 className="w-full pl-9 pr-3 py-3 rounded-xl bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
               />
             </div>
@@ -183,14 +189,23 @@ export function HomePage() {
 
 type DbType = NonNullable<ReturnType<typeof useSpacetime>['db']>;
 
-function waitForNewRoom(db: DbType): Promise<string | null> {
+function waitForNewRoom(db: DbType, existingIds: Set<string>): Promise<string | null> {
   return new Promise((resolve) => {
+    // Check if the room already landed in the cache before we subscribed.
+    for (const room of db.db.room.iter()) {
+      if (!existingIds.has(room.roomId.toString())) {
+        resolve(room.roomCode);
+        return;
+      }
+    }
+
     const timeout = setTimeout(() => {
       db.db.room.removeOnInsert(onInsert);
       resolve(null);
     }, 10_000);
 
-    function onInsert(_ctx: unknown, row: { roomCode: string }) {
+    function onInsert(_ctx: unknown, row: { roomCode: string; roomId: { toString(): string } }) {
+      if (existingIds.has(row.roomId.toString())) return; // not our new room
       clearTimeout(timeout);
       db.db.room.removeOnInsert(onInsert);
       resolve(row.roomCode);

@@ -26,7 +26,7 @@ export function useRoomId(
   // Synchronous lookup whenever db or roomCode changes.
   useEffect(() => {
     if (!db || !roomCode) return;
-    const room = db.db.room.room_by_code.filter(roomCode).next().value ?? null;
+    const room = [...db.db.room.iter()].find(r => r.roomCode === roomCode) ?? null;
     if (room) setRoomId(room.roomId);
   }, [db, roomCode]);
 
