@@ -19,3 +19,6 @@ target/
 
 # Logs
 *.log
+
+#docs
+backend/docs/
