@@ -61,6 +61,24 @@ export class SignalingManager {
 
   start(): void {
     this.db.db.signaling_message.onInsert(this.boundOnInsert);
+    // Replay is deferred to replayForPeer(), called after handleNewParticipant
+    // so the peer connection exists before we process cached offers/answers.
+  }
+
+  /**
+   * Replay any cached signaling messages from a specific peer.
+   * Must be called AFTER handleNewParticipant() so the RTCPeerConnection exists.
+   */
+  replayForPeer(peerHex: string): void {
+    for (const msg of this.db.db.signaling_message.iter()) {
+      if (
+        msg.roomId === this.roomId &&
+        msg.toIdentity.isEqual(this.myIdentity) &&
+        msg.fromIdentity.toHexString() === peerHex
+      ) {
+        this.handleIncomingMessage(null, msg);
+      }
+    }
   }
 
   stop(): void {
@@ -79,8 +97,10 @@ export class SignalingManager {
     const myHex = this.myIdentity.toHexString();
     if (myHex > identityHex) {
       await this.sendOffer(identityHex);
+    } else {
+      // We are the answerer — replay any cached offer that arrived before we subscribed.
+      this.replayForPeer(identityHex);
     }
-    // Otherwise we wait for their offer to arrive via onInsert.
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -93,13 +113,13 @@ export class SignalingManager {
     if (!msg.toIdentity.isEqual(this.myIdentity)) return;
 
     const fromHex = msg.fromIdentity.toHexString();
-    const type = msg.messageType;
+    const tag = msg.messageType.tag;
 
-    if ('Offer' in type) {
+    if (tag === 'Offer') {
       await this.handleOffer(fromHex, msg.payload);
-    } else if ('Answer' in type) {
+    } else if (tag === 'Answer') {
       await this.handleAnswer(fromHex, msg.payload);
-    } else if ('IceCandidate' in type) {
+    } else if (tag === 'IceCandidate') {
       await this.handleIceCandidate(fromHex, msg.payload);
     }
   }
@@ -184,7 +204,7 @@ export class SignalingManager {
 
   private async flushPendingCandidates(fromHex: string, pc: RTCPeerConnection): Promise<void> {
     const queue = this.pendingCandidates.get(fromHex);
-    if (!queue) return;
+    if (!queue || queue.length === 0) return;
     this.pendingCandidates.delete(fromHex);
     for (const c of queue) {
       await pc.addIceCandidate(new RTCIceCandidate(c));
