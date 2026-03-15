@@ -1,4 +1,4 @@
-# Video Conference App
+# Nexus - Live Video Conference App
 
 A production-grade Google Meet clone built with React, Rust, and SpaceTimeDB.
 
