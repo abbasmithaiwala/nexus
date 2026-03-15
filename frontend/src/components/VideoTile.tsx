@@ -14,6 +14,7 @@
 
 import { useEffect, useRef } from 'react';
 import { MicOff } from 'lucide-react';
+import type { FloatingReaction } from '@/hooks/useReactions';
 
 export interface VideoTileProps {
   stream: MediaStream | null;
@@ -24,6 +25,7 @@ export interface VideoTileProps {
   isHost?: boolean;
   isSpeaking?: boolean;
   mirrored?: boolean;
+  floatingReactions?: FloatingReaction[];
 }
 
 function Initials({ name }: { name: string }) {
@@ -48,6 +50,7 @@ export function VideoTile({
   isHost = false,
   isSpeaking = false,
   mirrored = false,
+  floatingReactions = [],
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -99,6 +102,17 @@ export function VideoTile({
       {!audioEnabled && (
         <div className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-red-600/90 flex items-center justify-center">
           <MicOff size={12} className="text-white" />
+        </div>
+      )}
+
+      {/* Floating emoji reactions */}
+      {floatingReactions.length > 0 && (
+        <div className="absolute inset-0 flex items-end justify-center pb-10 pointer-events-none overflow-hidden">
+          {floatingReactions.map((r) => (
+            <span key={r.id} className="reaction-float absolute text-3xl">
+              {r.emoji}
+            </span>
+          ))}
         </div>
       )}
 

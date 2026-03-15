@@ -21,3 +21,16 @@ body {
   background: #030712; /* gray-950 */
   color: #f9fafb; /* gray-50 */
 }
+
+/* Floating emoji reaction animation */
+@keyframes float-up {
+  0%   { transform: translateY(0) scale(1);   opacity: 1; }
+  70%  { transform: translateY(-60px) scale(1.3); opacity: 0.9; }
+  100% { transform: translateY(-90px) scale(0.9); opacity: 0; }
+}
+
+.reaction-float {
+  animation: float-up 2s ease-out forwards;
+  pointer-events: none;
+  user-select: none;
+}

@@ -10,6 +10,7 @@ import type { Identity } from 'spacetimedb';
 import { VideoGrid } from '@/components/VideoGrid';
 import { VideoTile } from '@/components/VideoTile';
 import type { Participant } from '@/module_bindings/types';
+import type { FloatingReaction } from '@/hooks/useReactions';
 
 interface ParticipantGridProps {
   participants: Participant[];
@@ -18,6 +19,8 @@ interface ParticipantGridProps {
   /** Remote MediaStreams keyed by identity hex string, provided by useWebRTC. */
   remoteStreams: Map<string, MediaStream>;
   identity: Identity | undefined;
+  /** Floating reactions keyed by identity hex string, provided by useReactions. */
+  floatingReactions: Map<string, FloatingReaction[]>;
 }
 
 export function ParticipantGrid({
@@ -26,6 +29,7 @@ export function ParticipantGrid({
   localStream,
   remoteStreams,
   identity,
+  floatingReactions,
 }: ParticipantGridProps) {
   const tiles = useMemo(() => {
     const local = localParticipant
@@ -69,6 +73,7 @@ export function ParticipantGrid({
             isLocal={isLocal}
             isHost={participant.isHost}
             mirrored={isLocal}
+            floatingReactions={floatingReactions.get(participant.identity.toHexString())}
           />
         );
       })}

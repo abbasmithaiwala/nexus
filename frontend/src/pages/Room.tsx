@@ -2,11 +2,11 @@
  * RoomPage — thin orchestrator for the live meeting room.
  *
  * All effects and SpaceTimeDB subscriptions live in dedicated hooks.
- * This component owns only: UI state (chat open), host derivation, and
- * wiring the hooks together into the layout.
+ * This component owns only: UI state (chat open, reactions open), host
+ * derivation, and wiring the hooks together into the layout.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { useSpacetime } from '@/hooks/useSpacetime';
@@ -16,8 +16,10 @@ import { useParticipants } from '@/hooks/useParticipants';
 import { useRoomLifecycle } from '@/hooks/useRoomLifecycle';
 import { useMediaStateSync } from '@/hooks/useMediaStateSync';
 import { useWebRTC } from '@/hooks/useWebRTC';
+import { useReactions } from '@/hooks/useReactions';
 
 import { ControlsBar } from '@/components/ControlsBar';
+import { ReactionsPanel } from '@/components/ReactionsPanel';
 import { RoomHeader } from './room/RoomHeader';
 import { ParticipantGrid } from './room/ParticipantGrid';
 import { ChatPanel } from './room/ChatPanel';
@@ -31,6 +33,7 @@ export function RoomPage() {
   const participants = useParticipants(db, roomId);
   const { handleLeave, handleEndMeeting } = useRoomLifecycle(db, roomId, roomCode);
   const remoteStreams = useWebRTC(db, identity, roomId, participants, local.stream);
+  const floatingReactions = useReactions(db, roomId);
 
   useMediaStateSync(db, roomId, {
     audioEnabled: local.audioEnabled,
@@ -39,13 +42,28 @@ export function RoomPage() {
   });
 
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [unreadCount] = useState(0); // wired in Phase 9
+  const [isReactionsOpen, setIsReactionsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const isChatOpenRef = useRef(isChatOpen);
+  isChatOpenRef.current = isChatOpen;
+
+  const handleNewMessage = useCallback(() => {
+    if (!isChatOpenRef.current) setUnreadCount((n) => n + 1);
+  }, []);
+
+  const handleToggleChat = useCallback(() => {
+    setIsChatOpen((prev) => {
+      if (!prev) setUnreadCount(0); // clear badge when opening
+      return !prev;
+    });
+  }, []);
 
   const myParticipant = useMemo(
     () => participants.find((p) => identity && p.identity.isEqual(identity)),
     [participants, identity],
   );
   const isHost = myParticipant?.isHost ?? false;
+  const myDisplayName = myParticipant?.displayName ?? '';
 
   const handleToggleScreenShare = useCallback(() => {
     if (local.isScreenSharing) local.stopScreenShare();
@@ -72,13 +90,31 @@ export function RoomPage() {
             localStream={local.stream}
             remoteStreams={remoteStreams}
             identity={identity}
+            floatingReactions={floatingReactions}
           />
         </div>
 
-        {isChatOpen && <ChatPanel onClose={() => setIsChatOpen(false)} />}
+        {isChatOpen && (
+          <ChatPanel
+            db={db}
+            roomId={roomId}
+            myDisplayName={myDisplayName}
+            onClose={() => setIsChatOpen(false)}
+            onNewMessage={handleNewMessage}
+          />
+        )}
       </div>
 
-      <div className="shrink-0">
+      <div className="shrink-0 relative">
+        {isReactionsOpen && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1">
+            <ReactionsPanel
+              db={db}
+              roomId={roomId}
+              onClose={() => setIsReactionsOpen(false)}
+            />
+          </div>
+        )}
         <ControlsBar
           audioEnabled={local.audioEnabled}
           videoEnabled={local.videoEnabled}
@@ -89,8 +125,8 @@ export function RoomPage() {
           onToggleAudio={local.toggleAudio}
           onToggleVideo={local.toggleVideo}
           onToggleScreenShare={handleToggleScreenShare}
-          onToggleChat={() => setIsChatOpen((p) => !p)}
-          onOpenReactions={() => { /* Phase 9 */ }}
+          onToggleChat={handleToggleChat}
+          onOpenReactions={() => setIsReactionsOpen((p) => !p)}
           onLeave={handleLeave}
           onEndMeeting={handleEndMeeting}
         />
