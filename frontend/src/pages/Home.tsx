@@ -83,7 +83,7 @@ export function HomePage() {
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">Nexus</h1>
         <p className="mt-2 text-gray-400 text-base sm:text-lg">
-          Secure, real-time video meetings — powered by SpaceTimeDB
+          Secure, real-time video meetings
         </p>
       </div>
 
