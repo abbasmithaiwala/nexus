@@ -93,7 +93,7 @@ export const VideoTile = memo(function VideoTile({
       )}
 
       {/* Bottom-left name label (only when video is on) */}
-      {videoEnabled && stream && (
+      {!!(videoEnabled && stream) && (
         <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
           <span className="px-2 py-0.5 rounded bg-black/60 text-white text-xs font-medium backdrop-blur-sm">
             {displayName}

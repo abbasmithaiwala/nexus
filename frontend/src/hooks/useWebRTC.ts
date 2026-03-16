@@ -28,6 +28,8 @@ export function useWebRTC(
   participants: Participant[],
   localStream: MediaStream | null,
 ): Map<string, MediaStream> {
+  /** Guard: don't initiate WebRTC until we have a local stream to send. */
+  const localStreamReady = localStream !== null;
   /** Remote streams keyed by identity hex — triggers re-renders on update. */
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
 
@@ -95,7 +97,10 @@ export function useWebRTC(
   useEffect(() => {
     const pcm = pcmRef.current;
     const sig = sigRef.current;
-    if (!pcm || !sig || !myHex) return;
+    // Wait until the local stream is ready so peer connections are created
+    // with local tracks already attached. Without this, offers go out with
+    // no media and the remote side receives an empty stream.
+    if (!pcm || !sig || !myHex || !localStreamReady) return;
 
     const currentHexes = new Set<string>();
 
@@ -123,7 +128,7 @@ export function useWebRTC(
         });
       }
     }
-  }, [participants, myHex]);
+  }, [participants, myHex, localStreamReady]);
 
   return remoteStreams;
 }

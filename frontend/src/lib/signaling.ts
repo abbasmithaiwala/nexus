@@ -145,6 +145,14 @@ export class SignalingManager {
 
   private async handleOffer(fromHex: string, payload: string): Promise<void> {
     const offer: RTCSessionDescriptionInit = JSON.parse(payload);
+    // If we already have a connection that is past 'stable' (e.g. a stale
+    // connection from a previous session), close it so we start fresh.
+    const existing = this.pcm.getPeer(fromHex);
+    if (existing && existing.signalingState !== 'stable') {
+      this.pcm.removePeer(fromHex);
+      this.remoteDescSet.delete(fromHex);
+      this.pendingCandidates.delete(fromHex);
+    }
     const pc = this.pcm.addPeer(fromHex);
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     this.remoteDescSet.add(fromHex);
@@ -167,6 +175,10 @@ export class SignalingManager {
     const answer: RTCSessionDescriptionInit = JSON.parse(payload);
     const pc = this.pcm.getPeer(fromHex);
     if (!pc) return;
+    // Only apply an answer when we are waiting for one. If the connection is
+    // already in 'stable' state this is a stale answer from a previous session
+    // and must be discarded — applying it throws InvalidStateError.
+    if (pc.signalingState !== 'have-local-offer') return;
     await pc.setRemoteDescription(new RTCSessionDescription(answer));
     this.remoteDescSet.add(fromHex);
     await this.flushPendingCandidates(fromHex, pc);
