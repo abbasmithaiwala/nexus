@@ -37,6 +37,10 @@ export class SignalingManager {
    *  from corrupting each other's RTCPeerConnection state. */
   private offerLocks = new Map<string, Promise<void>>();
 
+  /** Debounce timers for renegotiation — one per peer, cleared if another
+   *  onnegotiationneeded fires before the previous one is sent. */
+  private renegotiationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
   private boundOnInsert: (ctx: unknown, row: SignalingMessage) => void;
 
   constructor(
@@ -56,6 +60,16 @@ export class SignalingManager {
     // Wire ICE candidate callback back to the signaling layer.
     this.pcm.onIceCandidate = (identityHex, candidate) => {
       this.sendIceCandidate(identityHex, candidate);
+    };
+
+    // When a new track kind is added (e.g. user enables camera for the first
+    // time after joining with it off), the RTCPeerConnection fires
+    // onnegotiationneeded. We send a fresh offer so the remote side learns
+    // about the new track and can start rendering it.
+    // Debounced per peer: if multiple tracks are added in the same tick,
+    // onnegotiationneeded fires once per addTrack — we only want one offer.
+    this.pcm.onNegotiationNeeded = (identityHex) => {
+      this.scheduleRenegotiation(identityHex);
     };
   }
 
@@ -88,6 +102,30 @@ export class SignalingManager {
   stop(): void {
     this.db.db.signaling_message.removeOnInsert(this.boundOnInsert);
     this.offerLocks.clear();
+    for (const t of this.renegotiationTimers.values()) clearTimeout(t);
+    this.renegotiationTimers.clear();
+  }
+
+  /**
+   * Debounced renegotiation: coalesces rapid onnegotiationneeded events
+   * (e.g. audio + video addTrack in the same tick) into a single offer.
+   * Only fires if the connection is in a stable state — avoids sending an
+   * offer while a previous offer/answer exchange is still in flight.
+   */
+  private scheduleRenegotiation(identityHex: string): void {
+    const existing = this.renegotiationTimers.get(identityHex);
+    if (existing) clearTimeout(existing);
+
+    const t = setTimeout(() => {
+      this.renegotiationTimers.delete(identityHex);
+      const pc = this.pcm.getPeer(identityHex);
+      // Only renegotiate from a stable state — if an offer/answer is already
+      // in flight, onnegotiationneeded will fire again once it settles.
+      if (!pc || pc.signalingState !== 'stable') return;
+      this.sendOffer(identityHex).catch(() => {});
+    }, 0);
+
+    this.renegotiationTimers.set(identityHex, t);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
