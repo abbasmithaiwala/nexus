@@ -6,7 +6,7 @@
  * render its own floating emoji animations.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { DbConnection } from '@/module_bindings';
 import type { RoomEvent } from '@/module_bindings/types';
 
@@ -29,15 +29,13 @@ export function useReactions(
 ): Map<string, FloatingReaction[]> {
   // Map<identityHex, FloatingReaction[]>
   const [reactions, setReactions] = useState<Map<string, FloatingReaction[]>>(new Map());
-  const roomIdRef = useRef(roomId);
-  useEffect(() => { roomIdRef.current = roomId; }, [roomId]);
 
   useEffect(() => {
-    if (!db) return;
+    if (!db || roomId == null) return;
 
     const handleInsert = (_ctx: unknown, event: RoomEvent) => {
-      if (event.roomId !== roomIdRef.current) return;
-      if (!('ReactionSent' in event.eventType)) return;
+      if (event.roomId !== roomId) return;
+      if (event.eventType.tag !== 'ReactionSent') return;
 
       let payload: ReactionPayload;
       try {
@@ -79,7 +77,7 @@ export function useReactions(
     return () => {
       db.db.room_event.removeOnInsert(handleInsert);
     };
-  }, [db]);
+  }, [db, roomId]);
 
   return reactions;
 }

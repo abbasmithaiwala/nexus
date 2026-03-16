@@ -198,14 +198,39 @@ export class SignalingManager {
 
   private async processOffer(fromHex: string, payload: string): Promise<void> {
     const offer: RTCSessionDescriptionInit = JSON.parse(payload);
-    // If we already have a connection that is past 'stable' (e.g. a stale
-    // connection from a previous session), close it so we start fresh.
     const existing = this.pcm.getPeer(fromHex);
-    if (existing && existing.signalingState !== 'stable') {
-      this.pcm.removePeer(fromHex);
-      this.remoteDescSet.delete(fromHex);
-      this.pendingCandidates.delete(fromHex);
+
+    if (existing) {
+      if (existing.signalingState === 'stable') {
+        // Renegotiation offer on an existing stable connection. Apply it in-place
+        // to avoid resetting the m-line order.
+        try {
+          await existing.setRemoteDescription(new RTCSessionDescription(offer));
+          this.remoteDescSet.add(fromHex);
+          await this.flushPendingCandidates(fromHex, existing);
+          const currentPc = this.pcm.getPeer(fromHex);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (currentPc !== existing || (existing as any).signalingState !== 'have-remote-offer') return;
+          const answer = await existing.createAnswer();
+          await existing.setLocalDescription(answer);
+          const toIdentity = this.hexToIdentity(fromHex);
+          if (!toIdentity) return;
+          this.db.reducers.sendAnswer({ roomId: this.roomId, toIdentity, sdp: JSON.stringify(answer) });
+        } catch {
+          // If renegotiation fails (e.g. incompatible SDP), tear down and restart.
+          this.pcm.removePeer(fromHex);
+          this.remoteDescSet.delete(fromHex);
+          this.pendingCandidates.delete(fromHex);
+        }
+        return;
+      } else {
+        // Connection is in a non-stable, non-renegotiable state — tear it down.
+        this.pcm.removePeer(fromHex);
+        this.remoteDescSet.delete(fromHex);
+        this.pendingCandidates.delete(fromHex);
+      }
     }
+
     const pc = this.pcm.addPeer(fromHex);
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     this.remoteDescSet.add(fromHex);
@@ -256,7 +281,12 @@ export class SignalingManager {
       return;
     }
 
-    await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+    if (pc.signalingState === 'closed') return;
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+    } catch {
+      // Ignore: candidate may be stale if the connection was reset.
+    }
   }
 
   private sendIceCandidate(toIdentityHex: string, candidate: RTCIceCandidate): void {
@@ -275,7 +305,13 @@ export class SignalingManager {
     if (!queue || queue.length === 0) return;
     this.pendingCandidates.delete(fromHex);
     for (const c of queue) {
-      await pc.addIceCandidate(new RTCIceCandidate(c));
+      // Skip if the connection was replaced or closed while we were awaiting.
+      if (this.pcm.getPeer(fromHex) !== pc || pc.signalingState === 'closed') break;
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(c));
+      } catch {
+        // Ignore stale candidates (e.g. arrived after connection was reset).
+      }
     }
   }
 

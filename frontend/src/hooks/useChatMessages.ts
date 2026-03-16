@@ -31,7 +31,7 @@ function parsePayload(payload: string): ChatPayload | null {
 }
 
 function eventToMessage(event: RoomEvent, myDisplayName: string): ChatMessage | null {
-  if (!('ChatMessage' in event.eventType)) return null;
+  if (event.eventType.tag !== 'ChatMessage') return null;
   const parsed = parsePayload(event.payload);
   if (!parsed) return null;
   return {
