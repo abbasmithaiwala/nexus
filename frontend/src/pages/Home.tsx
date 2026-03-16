@@ -164,7 +164,13 @@ export function HomePage() {
               <input
                 type="text"
                 value={join.code}
-                onChange={(e) => setJoin({ code: e.target.value, error: '' })}
+                onChange={(e) => {
+                  const letters = e.target.value.replace(/[^a-zA-Z]/g, '').toLowerCase().slice(0, 10);
+                  let formatted = letters;
+                  if (letters.length > 3) formatted = letters.slice(0, 3) + '-' + letters.slice(3);
+                  if (letters.length > 7) formatted = formatted.slice(0, 8) + '-' + formatted.slice(8);
+                  setJoin({ code: formatted, error: '' });
+                }}
                 placeholder="xxx-xxxx-xxx"
                 maxLength={12}
                 className="w-full pl-9 pr-3 py-3 rounded-xl bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
