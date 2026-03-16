@@ -33,6 +33,10 @@ export class SignalingManager {
   /** Track which peer descriptions are ready to receive ICE candidates */
   private remoteDescSet = new Set<string>();
 
+  /** Serialise offer handling per peer — prevents concurrent handleOffer calls
+   *  from corrupting each other's RTCPeerConnection state. */
+  private offerLocks = new Map<string, Promise<void>>();
+
   private boundOnInsert: (ctx: unknown, row: SignalingMessage) => void;
 
   constructor(
@@ -83,6 +87,7 @@ export class SignalingManager {
 
   stop(): void {
     this.db.db.signaling_message.removeOnInsert(this.boundOnInsert);
+    this.offerLocks.clear();
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -143,7 +148,17 @@ export class SignalingManager {
     });
   }
 
-  private async handleOffer(fromHex: string, payload: string): Promise<void> {
+  private handleOffer(fromHex: string, payload: string): Promise<void> {
+    // Serialise offer processing per peer. If a previous handleOffer is still
+    // in-flight for this peer, chain onto it so they never run concurrently.
+    const prev = this.offerLocks.get(fromHex) ?? Promise.resolve();
+    const next = prev.then(() => this.processOffer(fromHex, payload));
+    // Store the chained promise (without the rejection so the chain continues).
+    this.offerLocks.set(fromHex, next.catch(() => {}));
+    return next;
+  }
+
+  private async processOffer(fromHex: string, payload: string): Promise<void> {
     const offer: RTCSessionDescriptionInit = JSON.parse(payload);
     // If we already have a connection that is past 'stable' (e.g. a stale
     // connection from a previous session), close it so we start fresh.
@@ -157,6 +172,9 @@ export class SignalingManager {
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     this.remoteDescSet.add(fromHex);
     await this.flushPendingCandidates(fromHex, pc);
+
+    // Guard: the PC may have been replaced by a concurrent call that ran first.
+    if (this.pcm.getPeer(fromHex) !== pc || pc.signalingState !== 'have-remote-offer') return;
 
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);

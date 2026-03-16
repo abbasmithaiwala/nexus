@@ -25,6 +25,8 @@ export class PeerConnectionManager {
   private peers = new Map<string, RTCPeerConnection>();
   /** Map<identityHex, MediaStream> — remote streams received so far */
   private remoteStreams = new Map<string, MediaStream>();
+  /** Track the intended kind for each sender so we can match even when track is null */
+  private senderKinds = new Map<RTCRtpSender, string>();
   /** The local camera/mic (or screen) stream, added to every new connection */
   private localStream: MediaStream | null = null;
   /** Extra ICE servers (e.g. TURN) injected at runtime */
@@ -97,6 +99,10 @@ export class PeerConnectionManager {
   removePeer(identityHex: string): void {
     const pc = this.peers.get(identityHex);
     if (pc) {
+      // Clean up sender kind tracking for this connection's senders.
+      for (const sender of pc.getSenders()) {
+        this.senderKinds.delete(sender);
+      }
       pc.onicecandidate = null;
       pc.ontrack = null;
       pc.close();
@@ -144,14 +150,23 @@ export class PeerConnectionManager {
   /**
    * Add all tracks from `stream` to `pc`, replacing any existing sender for
    * the same kind to avoid duplicate senders.
+   *
+   * Senders are matched by kind using both the live track (when present) and
+   * the recorded intended kind (senderKinds map), so we always prefer
+   * replaceTrack over addTrack — addTrack requires renegotiation while
+   * replaceTrack swaps the track in-place without it.
    */
   private addLocalTracksToPeer(pc: RTCPeerConnection, stream: MediaStream): void {
     for (const track of stream.getTracks()) {
-      const existing = pc.getSenders().find((s) => s.track?.kind === track.kind);
+      const senders = pc.getSenders();
+      const existing =
+        senders.find((s) => s.track?.kind === track.kind) ??
+        senders.find((s) => this.senderKinds.get(s) === track.kind);
       if (existing) {
         existing.replaceTrack(track);
       } else {
-        pc.addTrack(track, stream);
+        const sender = pc.addTrack(track, stream);
+        this.senderKinds.set(sender, track.kind);
       }
     }
   }

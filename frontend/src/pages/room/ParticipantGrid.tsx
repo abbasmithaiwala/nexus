@@ -70,9 +70,10 @@ export function ParticipantGrid({
             displayName={participant.displayName}
             audioEnabled={participant.mediaState.audioEnabled}
             videoEnabled={participant.mediaState.videoEnabled}
+            isScreenSharing={participant.mediaState.isScreenSharing}
             isLocal={isLocal}
             isHost={participant.isHost}
-            mirrored={isLocal}
+            mirrored={isLocal && !participant.mediaState.isScreenSharing}
             floatingReactions={floatingReactions.get(participant.identity.toHexString())}
           />
         );

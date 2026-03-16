@@ -46,15 +46,15 @@ export function VideoGrid({ children, screenShareIndex }: VideoGridProps) {
     const otherTiles = children.filter((_, i) => i !== screenShareIndex);
 
     return (
-      <div className="flex gap-2 w-full h-full">
-        {/* Large screen-share tile */}
-        <div className="flex-1 min-h-0 min-w-0">
+      <div className="flex flex-col sm:flex-row gap-2 w-full h-full">
+        {/* Large screen-share tile — fills all available space above the strip */}
+        <div className="flex-1 min-h-0 min-w-0 w-full">
           {screenTile}
         </div>
-        {/* Thumbnail sidebar */}
-        <div className="flex flex-col gap-2 w-40 shrink-0 overflow-y-auto">
+        {/* Thumbnails: fixed-height horizontal strip on mobile, vertical sidebar on desktop */}
+        <div className="flex flex-row sm:flex-col gap-2 h-24 sm:h-auto sm:w-32 shrink-0 overflow-x-auto sm:overflow-x-visible sm:overflow-y-auto">
           {otherTiles.map((tile, i) => (
-            <div key={i} className="aspect-video min-w-0 shrink-0">
+            <div key={i} className="aspect-video h-full sm:h-auto sm:w-full shrink-0 min-w-0">
               {tile}
             </div>
           ))}

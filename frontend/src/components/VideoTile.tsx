@@ -21,6 +21,7 @@ export interface VideoTileProps {
   displayName: string;
   audioEnabled: boolean;
   videoEnabled: boolean;
+  isScreenSharing?: boolean;
   isLocal?: boolean;
   isHost?: boolean;
   isSpeaking?: boolean;
@@ -46,6 +47,7 @@ export const VideoTile = memo(function VideoTile({
   displayName,
   audioEnabled,
   videoEnabled,
+  isScreenSharing = false,
   isLocal = false,
   isHost = false,
   isSpeaking = false,
@@ -73,27 +75,27 @@ export const VideoTile = memo(function VideoTile({
         isSpeaking ? 'ring-2 ring-indigo-400' : ''
       }`}
     >
-      {/* Video element — hidden when camera is off */}
+      {/* Video element — hidden when camera is off (unless screen sharing) */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted={isLocal}
-        className={`absolute inset-0 w-full h-full object-cover ${
-          mirrored ? '-scale-x-100' : ''
-        } ${videoEnabled && stream ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 w-full h-full ${isScreenSharing ? 'object-contain' : 'object-cover'} ${
+          mirrored && !isScreenSharing ? '-scale-x-100' : ''
+        } ${(videoEnabled || isScreenSharing) && stream ? 'opacity-100' : 'opacity-0'}`}
       />
 
-      {/* Avatar shown when camera is off */}
-      {(!videoEnabled || !stream) && (
+      {/* Avatar shown when camera is off and not screen sharing */}
+      {((!videoEnabled && !isScreenSharing) || !stream) && (
         <div className="flex flex-col items-center gap-2">
           <Initials name={displayName} />
           <span className="text-gray-300 text-sm font-medium">{displayName}</span>
         </div>
       )}
 
-      {/* Bottom-left name label (only when video is on) */}
-      {!!(videoEnabled && stream) && (
+      {/* Bottom-left name label (only when video/screen is on) */}
+      {!!((videoEnabled || isScreenSharing) && stream) && (
         <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
           <span className="px-2 py-0.5 rounded bg-black/60 text-white text-xs font-medium backdrop-blur-sm">
             {displayName}
