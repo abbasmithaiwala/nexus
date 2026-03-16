@@ -59,6 +59,20 @@ pub fn create_room(ctx: &ReducerContext, display_name: String) -> Result<(), Str
 
     upsert_user(ctx, display_name.clone());
 
+    // Leave any room the user is currently active in before creating a new one.
+    let sender = ctx.sender();
+    let active_room_ids: Vec<u64> = ctx.db.participant().iter()
+        .filter(|p| p.identity == sender && p.left_at.is_none())
+        .map(|p| p.room_id)
+        .collect();
+    for rid in active_room_ids {
+        if let Some(r) = ctx.db.room().room_id().find(&rid) {
+            if r.status != RoomStatus::Ended {
+                let _ = leave_room_internal(ctx, rid, sender);
+            }
+        }
+    }
+
     // Generate a unique room code
     let room_code = loop {
         let code = generate_room_code(ctx);
@@ -67,7 +81,6 @@ pub fn create_room(ctx: &ReducerContext, display_name: String) -> Result<(), Str
         }
     };
 
-    let sender = ctx.sender();
     let room = ctx.db.room().insert(Room {
         room_id: 0,
         room_code: room_code.clone(),
@@ -125,7 +138,21 @@ pub fn join_room(ctx: &ReducerContext, room_code: String, display_name: String) 
 
     let sender = ctx.sender();
 
-    // Check if already an active participant
+    // Leave any room the user is currently active in (except the target room).
+    let active_room_ids: Vec<u64> = ctx.db.participant().iter()
+        .filter(|p| p.identity == sender && p.left_at.is_none() && p.room_id != room.room_id)
+        .map(|p| p.room_id)
+        .collect();
+    for rid in active_room_ids {
+        // Only leave active rooms (skip already-ended rooms).
+        if let Some(r) = ctx.db.room().room_id().find(&rid) {
+            if r.status != RoomStatus::Ended {
+                let _ = leave_room_internal(ctx, rid, sender);
+            }
+        }
+    }
+
+    // Check if already an active participant in the target room
     let already_in = ctx.db.participant().participant_by_room().filter(&room.room_id)
         .any(|p| p.identity == sender && p.left_at.is_none());
     if already_in {
@@ -164,9 +191,7 @@ pub fn join_room(ctx: &ReducerContext, room_code: String, display_name: String) 
     Ok(())
 }
 
-#[reducer]
-pub fn leave_room(ctx: &ReducerContext, room_id: u64) -> Result<(), String> {
-    let sender = ctx.sender();
+fn leave_room_internal(ctx: &ReducerContext, room_id: u64, sender: spacetimedb::Identity) -> Result<(), String> {
     let participant = ctx.db.participant().participant_by_room().filter(&room_id)
         .find(|p| p.identity == sender && p.left_at.is_none())
         .ok_or("You are not an active participant in this room")?;
@@ -207,6 +232,11 @@ pub fn leave_room(ctx: &ReducerContext, room_id: u64) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[reducer]
+pub fn leave_room(ctx: &ReducerContext, room_id: u64) -> Result<(), String> {
+    leave_room_internal(ctx, room_id, ctx.sender())
 }
 
 #[reducer]

@@ -51,12 +51,16 @@ export function useRoomLifecycle(
   }, [db]);
 
   const handleLeave = useCallback(async () => {
-    if (db && roomId != null) await db.reducers.leaveRoom({ roomId });
+    if (db && roomId != null) {
+      try { await db.reducers.leaveRoom({ roomId }); } catch { /* reducer ended the room */ }
+    }
     navigate('/');
   }, [db, roomId, navigate]);
 
   const handleEndMeeting = useCallback(async () => {
-    if (db && roomId != null) await db.reducers.endMeeting({ roomId });
+    if (db && roomId != null) {
+      try { await db.reducers.endMeeting({ roomId }); } catch { /* ignore */ }
+    }
     navigate('/');
   }, [db, roomId, navigate]);
 
