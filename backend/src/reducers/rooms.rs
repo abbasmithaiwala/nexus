@@ -5,8 +5,20 @@ use crate::tables::{
     rooms::{Room, RoomStatus, room},
     participants::{Participant, MediaState, participant},
     room_events::{RoomEvent, EventType, room_event},
+    signaling::signaling_message,
 };
 use crate::reducers::util::sanitize_display_name;
+
+/// Delete all signaling rows involving a specific identity in a room.
+fn cleanup_signaling_for_identity(ctx: &ReducerContext, room_id: u64, identity: spacetimedb::Identity) {
+    let ids: Vec<u64> = ctx.db.signaling_message().signaling_by_room().filter(&room_id)
+        .filter(|msg| msg.from_identity == identity || msg.to_identity == identity)
+        .map(|msg| msg.id)
+        .collect();
+    for id in ids {
+        ctx.db.signaling_message().id().delete(&id);
+    }
+}
 
 fn random_chars(ctx: &ReducerContext, n: usize) -> String {
     const CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
@@ -122,6 +134,9 @@ pub fn join_room(ctx: &ReducerContext, room_code: String, display_name: String) 
 
     upsert_user(ctx, display_name.clone());
 
+    // Clear any stale signaling rows from a previous session for this identity.
+    cleanup_signaling_for_identity(ctx, room.room_id, sender);
+
     ctx.db.participant().insert(Participant {
         participant_id: 0,
         room_id: room.room_id,
@@ -163,6 +178,9 @@ pub fn leave_room(ctx: &ReducerContext, room_id: u64) -> Result<(), String> {
         left_at: Some(ctx.timestamp),
         ..participant
     });
+
+    // Clean up signaling rows for the leaving participant.
+    cleanup_signaling_for_identity(ctx, room_id, sender);
 
     ctx.db.room_event().insert(RoomEvent {
         event_id: 0,
