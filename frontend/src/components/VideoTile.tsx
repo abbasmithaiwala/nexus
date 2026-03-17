@@ -1,15 +1,15 @@
 /**
- * VideoTile — renders a single participant's video (or avatar when camera is off).
+ * VideoTile — renders one participant's video (or avatar when camera is off).
  *
- * Props:
- *  - stream: MediaStream | null   — remote (or local) media stream
- *  - displayName: string
- *  - audioEnabled: boolean        — shows muted icon when false
- *  - videoEnabled: boolean        — shows avatar when false
- *  - isLocal: boolean             — shows "You" badge
- *  - isHost: boolean              — shows "Host" badge
- *  - isSpeaking?: boolean         — optional speaking indicator (ring highlight)
- *  - mirrored?: boolean           — mirror the video (local camera)
+ * Safari/iOS autoplay note:
+ *  Remote video is not muted, so Safari blocks autoplay until the user has
+ *  interacted with the page. We handle this by listening for the first click/
+ *  touch on the document and retrying play() at that point. The video element
+ *  is also given `playsInline` (mandatory on iOS) and `autoPlay` (Chrome/Firefox).
+ *
+ *  srcObject is reassigned whenever the stream reference OR the track ids change
+ *  (trackIds key) — this covers the case where PeerConnectionManager replaces a
+ *  track in-place on the same MediaStream object.
  */
 
 import { memo, useEffect, useRef } from 'react';
@@ -42,6 +42,20 @@ function Initials({ name }: { name: string }) {
   );
 }
 
+/** Attempt play(); if blocked (Safari autoplay policy), retry on first interaction. */
+function playVideo(el: HTMLVideoElement): void {
+  el.play().catch(() => {
+    // Safari blocks autoplay on unmuted remote video until user interaction.
+    // Register a one-time handler on the document that retries play().
+    const retry = () => {
+      el.play().catch(() => {});
+    };
+    document.addEventListener('click', retry, { once: true, passive: true });
+    document.addEventListener('touchstart', retry, { once: true, passive: true });
+    document.addEventListener('keydown', retry, { once: true, passive: true });
+  });
+}
+
 export const VideoTile = memo(function VideoTile({
   stream,
   displayName,
@@ -56,18 +70,22 @@ export const VideoTile = memo(function VideoTile({
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Derive a key from track ids: when PeerConnectionManager replaces a track
+  // in-place on the same MediaStream object, the stream reference doesn't change
+  // but the track ids do — this ensures the effect re-runs and reattaches.
+  const trackIds = stream ? stream.getTracks().map((t) => t.id).sort().join(',') : '';
+
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
     if (stream) {
       el.srcObject = stream;
-      el.play().catch(() => {
-        // Autoplay may be blocked; the browser will play on first user interaction.
-      });
+      playVideo(el);
     } else {
       el.srcObject = null;
     }
-  }, [stream]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stream, trackIds]);
 
   return (
     <div
@@ -75,7 +93,6 @@ export const VideoTile = memo(function VideoTile({
         isSpeaking ? 'ring-2 ring-indigo-400' : ''
       }`}
     >
-      {/* Video element — hidden when camera is off (unless screen sharing) */}
       <video
         ref={videoRef}
         autoPlay
@@ -86,7 +103,6 @@ export const VideoTile = memo(function VideoTile({
         } ${(videoEnabled || isScreenSharing) && stream ? 'opacity-100' : 'opacity-0'}`}
       />
 
-      {/* Avatar shown when camera is off and not screen sharing */}
       {((!videoEnabled && !isScreenSharing) || !stream) && (
         <div className="flex flex-col items-center gap-2">
           <Initials name={displayName} />
@@ -94,7 +110,6 @@ export const VideoTile = memo(function VideoTile({
         </div>
       )}
 
-      {/* Bottom-left name label (only when video/screen is on) */}
       {!!((videoEnabled || isScreenSharing) && stream) && (
         <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
           <span className="px-2 py-0.5 rounded bg-black/60 text-white text-xs font-medium backdrop-blur-sm">
@@ -103,14 +118,12 @@ export const VideoTile = memo(function VideoTile({
         </div>
       )}
 
-      {/* Muted mic icon */}
       {!audioEnabled && (
         <div className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-red-600/90 flex items-center justify-center">
           <MicOff size={12} className="text-white" />
         </div>
       )}
 
-      {/* Floating emoji reactions */}
       {floatingReactions.length > 0 && (
         <div className="absolute inset-0 flex items-end justify-center pb-10 pointer-events-none overflow-hidden">
           {floatingReactions.map((r) => (
@@ -121,7 +134,6 @@ export const VideoTile = memo(function VideoTile({
         </div>
       )}
 
-      {/* Badges — top row */}
       <div className="absolute top-2 left-2 flex gap-1">
         {isHost && (
           <span className="px-1.5 py-0.5 rounded bg-amber-500/90 text-white text-xs font-semibold backdrop-blur-sm">
