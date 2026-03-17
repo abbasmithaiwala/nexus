@@ -1,41 +1,29 @@
 /**
- * SignalingManager — Perfect Negotiation pattern for WebRTC over SpaceTimeDB.
+ * SignalingManager — drives WebRTC offer/answer/ICE exchange via SpaceTimeDB.
  *
- * polite   = myHex < theirHex  (yields on glare, rolls back own offer)
- * impolite = myHex > theirHex  (keeps own offer on glare, discards incoming)
+ * Architecture:
+ *  - SpaceTimeDB's `signaling_message` table acts as the signaling channel.
+ *  - Each client subscribes to rows where `toIdentity == myIdentity`.
+ *  - Exactly one side sends the offer, determined by lexicographic comparison
+ *    of the two hex identity strings:
+ *      myHex > theirHex  →  I am the offerer (impolite)
+ *      myHex < theirHex  →  I am the answerer (polite); replay cached offer
+ *    This is deterministic and prevents both sides creating an offer simultaneously.
  *
- * Per-peer state (PeerState) is owned entirely here — no state leaks to PCM.
+ * Renegotiation (e.g. user enables camera after joining):
+ *  - onnegotiationneeded is debounced per peer and results in a new offer from
+ *    whichever side fires it, only when the connection is already stable.
+ *  - On the answerer side, a renegotiation offer is applied in-place.
  *
- * Key behaviours:
- * - negotiate() is the single entry point for all offer creation. Three guards
- *   prevent invalid calls: makingOffer (re-entrancy), signalingState !== stable
- *   (mid-handshake), and suppressNextNegotiation (post-rollback spurious fire).
- * - handleAnswer always clears ignoreOffer before checking signalingState so
- *   the impolite side never accidentally drops the answer to its own offer.
- * - Empty ICE candidates (end-of-candidates signal) are skipped — Safari throws
- *   if addIceCandidate is called with candidate: ''.
- * - Both connectionstatechange and iceconnectionstatechange trigger ICE restart
- *   scheduling; Safari iOS only fires the latter reliably.
+ * ICE restart:
+ *  - On connection failure, only the offerer side (higher hex) initiates a
+ *    restart to avoid both sides restarting simultaneously.
  */
 
 import type { Identity } from 'spacetimedb';
 import type { DbConnection } from '@/module_bindings';
 import type { SignalingMessage } from '@/module_bindings/types';
 import type { PeerConnectionManager } from './webrtc';
-
-interface PeerState {
-  makingOffer: boolean;
-  ignoreOffer: boolean;
-  pendingCandidates: RTCIceCandidateInit[];
-  remoteDescSet: boolean;
-  restartTimer: ReturnType<typeof setTimeout> | null;
-  /**
-   * Set when the polite side rolls back its offer to accept the remote's.
-   * The rollback fires a spurious onnegotiationneeded once stable is reached;
-   * this flag suppresses that single extra call.
-   */
-  suppressNextNegotiation: boolean;
-}
 
 export class SignalingManager {
   private db: DbConnection;
@@ -44,7 +32,23 @@ export class SignalingManager {
   private roomId: bigint;
   private pcm: PeerConnectionManager;
 
-  private peers = new Map<string, PeerState>();
+  /** Queued ICE candidates that arrived before the remote description was set */
+  private pendingCandidates = new Map<string, RTCIceCandidateInit[]>();
+
+  /** Track which peers have their remote description set (ready for ICE) */
+  private remoteDescSet = new Set<string>();
+
+  /** Serialise offer handling per peer to prevent concurrent processOffer calls */
+  private offerLocks = new Map<string, Promise<void>>();
+
+  /** Debounce timers for renegotiation — prevents offer storm on multi-track add */
+  private renegotiationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /** Guards against concurrent sendOffer calls for the same peer */
+  private makingOffer = new Set<string>();
+
+  /** ICE restart timers — one per peer */
+  private restartTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   private boundOnInsert: (ctx: unknown, row: SignalingMessage) => void;
 
@@ -62,22 +66,23 @@ export class SignalingManager {
 
     this.boundOnInsert = this.handleIncomingMessage.bind(this);
 
-    this.pcm.onIceCandidate = (hex, candidate) => {
-      this.sendSignal(hex, 'IceCandidate', JSON.stringify(candidate.toJSON()));
+    this.pcm.onIceCandidate = (identityHex, candidate) => {
+      this.sendIceCandidate(identityHex, candidate);
     };
 
-    this.pcm.onNegotiationNeeded = (hex) => {
-      this.negotiate(hex).catch(() => {});
+    // Renegotiation: debounced per peer, only fires on stable connections.
+    this.pcm.onNegotiationNeeded = (identityHex) => {
+      this.scheduleRenegotiation(identityHex);
     };
 
-    this.pcm.onConnectionFailed = (hex) => {
-      this.scheduleIceRestart(hex);
+    this.pcm.onConnectionFailed = (identityHex) => {
+      this.scheduleIceRestart(identityHex);
     };
   }
 
-  // ──────────────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────────────────
   // Lifecycle
-  // ──────────────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────────────────
 
   start(): void {
     this.db.db.signaling_message.onInsert(this.boundOnInsert);
@@ -85,98 +90,140 @@ export class SignalingManager {
 
   stop(): void {
     this.db.db.signaling_message.removeOnInsert(this.boundOnInsert);
-    for (const state of this.peers.values()) {
-      if (state.restartTimer) clearTimeout(state.restartTimer);
-    }
-    this.peers.clear();
+    this.offerLocks.clear();
+    this.makingOffer.clear();
+    for (const t of this.renegotiationTimers.values()) clearTimeout(t);
+    this.renegotiationTimers.clear();
+    for (const t of this.restartTimers.values()) clearTimeout(t);
+    this.restartTimers.clear();
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Participant join — deterministic offerer selection
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Called when a remote participant joins.
+   *
+   * Offerer  = higher hex (myHex > theirHex) — creates RTCPeerConnection and sends offer.
+   * Answerer = lower hex (myHex < theirHex)  — creates RTCPeerConnection and replays
+   *            any cached offer/ICE that arrived before we subscribed.
+   */
   handleNewParticipant(identityHex: string): void {
-    if (this.peers.has(identityHex)) return;
-
-    this.peers.set(identityHex, {
-      makingOffer: false,
-      ignoreOffer: false,
-      pendingCandidates: [],
-      remoteDescSet: false,
-      restartTimer: null,
-      suppressNextNegotiation: false,
-    });
-
-    const hasCachedOffer = this.myHex < identityHex &&
-      [...this.db.db.signaling_message.iter()].some(
-        (m) =>
-          m.roomId === this.roomId &&
-          m.toIdentity.isEqual(this.myIdentity) &&
-          m.fromIdentity.toHexString() === identityHex &&
-          m.messageType.tag === 'Offer',
-      );
-
-    // If the remote already sent us an offer (cached), suppress the spurious
-    // negotiate() that addPeer fires so we don't create a glare scenario.
-    if (hasCachedOffer) {
-      this.peers.get(identityHex)!.suppressNextNegotiation = true;
-    }
-
-    // addPeer triggers onnegotiationneeded → negotiate() (Chrome: synchronously
-    // via addTrack; Safari: asynchronously on next microtask).
-    this.pcm.addPeer(identityHex);
-
-    if (this.myHex < identityHex) {
-      // Polite side: replay any offer the remote sent before we subscribed.
+    if (this.myHex > identityHex) {
+      // I am the offerer: add the peer and send an offer.
+      // addPeer fires onnegotiationneeded → scheduleRenegotiation → sendOffer.
+      // We call sendOffer directly here too as a fallback in case
+      // onnegotiationneeded does not fire (Safari timing).
+      this.pcm.addPeer(identityHex);
+      this.sendOffer(identityHex).catch(() => {});
+    } else {
+      // I am the answerer: add the peer, then replay any cached messages.
+      this.pcm.addPeer(identityHex);
       this.replayForPeer(identityHex);
     }
-    // Impolite side: onnegotiationneeded from addTrack drives negotiate().
   }
 
-  /** Called by useWebRTC when a participant leaves the room. */
+  /** Called when a participant leaves. */
   removePeer(identityHex: string): void {
     this.teardownPeer(identityHex);
   }
 
-  // ──────────────────────────────────────────────────────────────────────
-  // Perfect Negotiation — offer creation
-  // ──────────────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────────────────
+  // Offer sending
+  // ──────────────────────────────────────────────────────────────────────────
 
-  private async negotiate(identityHex: string): Promise<void> {
-    const state = this.peers.get(identityHex);
-    const pc = this.pcm.getPeer(identityHex);
-    if (!state || !pc) return;
-
-    // Guard 1: already building an offer — skip re-entrant call.
-    if (state.makingOffer) return;
-
-    // Guard 2: mid-handshake — browser will re-fire once stable.
+  private async sendOffer(toIdentityHex: string): Promise<void> {
+    if (this.makingOffer.has(toIdentityHex)) return;
+    const pc = this.pcm.getPeer(toIdentityHex);
+    if (!pc) return;
     if (pc.signalingState !== 'stable') return;
 
-    // Guard 3: polite side just sent an answer after a rollback — suppress
-    // the spurious onnegotiationneeded the rollback fires on return to stable.
-    if (state.suppressNextNegotiation) {
-      state.suppressNextNegotiation = false;
-      return;
-    }
-
-    // Set makingOffer synchronously before the first await so concurrent
-    // onnegotiationneeded events see it immediately.
-    state.makingOffer = true;
+    this.makingOffer.add(toIdentityHex);
     try {
       const offer = await pc.createOffer();
-      // Re-check: handleOffer may have run during createOffer (async gap).
+      // Re-check after async gap.
+      if (this.pcm.getPeer(toIdentityHex) !== pc) return;
       if (pc.signalingState !== 'stable') return;
       await pc.setLocalDescription(offer);
-      const toIdentity = this.hexToIdentity(identityHex);
-      if (!toIdentity || this.pcm.getPeer(identityHex) !== pc) return;
-      this.sendSignal(identityHex, 'Offer', JSON.stringify(pc.localDescription));
+
+      const toIdentity = this.hexToIdentity(toIdentityHex);
+      if (!toIdentity || this.pcm.getPeer(toIdentityHex) !== pc) return;
+
+      this.db.reducers.sendOffer({
+        roomId: this.roomId,
+        toIdentity,
+        sdp: JSON.stringify(pc.localDescription),
+      });
     } catch {
       // createOffer/setLocalDescription failed (connection closed, etc.) — ignore.
     } finally {
-      state.makingOffer = false;
+      this.makingOffer.delete(toIdentityHex);
     }
   }
 
-  // ──────────────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────────────────
+  // Renegotiation (debounced)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  private scheduleRenegotiation(identityHex: string): void {
+    const existing = this.renegotiationTimers.get(identityHex);
+    if (existing) clearTimeout(existing);
+
+    const t = setTimeout(() => {
+      this.renegotiationTimers.delete(identityHex);
+      const pc = this.pcm.getPeer(identityHex);
+      if (!pc || pc.signalingState !== 'stable') return;
+      this.sendOffer(identityHex).catch(() => {});
+    }, 0);
+
+    this.renegotiationTimers.set(identityHex, t);
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // ICE restart
+  // ──────────────────────────────────────────────────────────────────────────
+
+  private scheduleIceRestart(identityHex: string): void {
+    const existing = this.restartTimers.get(identityHex);
+    if (existing) clearTimeout(existing);
+
+    // Only the offerer (higher hex) initiates restart to avoid both sides restarting.
+    if (this.myHex < identityHex) return;
+
+    const t = setTimeout(() => {
+      this.restartTimers.delete(identityHex);
+      const pc = this.pcm.getPeer(identityHex);
+      if (!pc) return;
+      this.sendIceRestartOffer(identityHex).catch(() => {});
+    }, 2000);
+
+    this.restartTimers.set(identityHex, t);
+  }
+
+  private async sendIceRestartOffer(identityHex: string): Promise<void> {
+    const pc = this.pcm.getPeer(identityHex);
+    if (!pc) return;
+
+    try {
+      const offer = await pc.createOffer({ iceRestart: true });
+      if (this.pcm.getPeer(identityHex) !== pc) return;
+      await pc.setLocalDescription(offer);
+      const toIdentity = this.hexToIdentity(identityHex);
+      if (!toIdentity) return;
+      this.db.reducers.sendOffer({
+        roomId: this.roomId,
+        toIdentity,
+        sdp: JSON.stringify(pc.localDescription),
+      });
+    } catch {
+      // Connection closed — ignore.
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
   // Incoming message dispatch
-  // ──────────────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────────────────
 
   private async handleIncomingMessage(_ctx: unknown, msg: SignalingMessage): Promise<void> {
     if (msg.roomId !== this.roomId) return;
@@ -194,86 +241,80 @@ export class SignalingManager {
     }
   }
 
-  // ── Offer ──────────────────────────────────────────────────────────────
+  // ── Offer ──────────────────────────────────────────────────────────────────
 
-  private async handleOffer(fromHex: string, payload: string): Promise<void> {
-    // Lazily init if the offer arrived before handleNewParticipant.
-    if (!this.peers.has(fromHex)) {
-      this.peers.set(fromHex, {
-        makingOffer: false,
-        ignoreOffer: false,
-        pendingCandidates: [],
-        remoteDescSet: false,
-        restartTimer: null,
-        suppressNextNegotiation: false,
-      });
+  private handleOffer(fromHex: string, payload: string): Promise<void> {
+    // Serialise offer processing per peer to prevent concurrent calls from
+    // corrupting the RTCPeerConnection state machine.
+    const prev = this.offerLocks.get(fromHex) ?? Promise.resolve();
+    const next = prev.then(() => this.processOffer(fromHex, payload));
+    this.offerLocks.set(fromHex, next.catch(() => {}));
+    return next;
+  }
+
+  private async processOffer(fromHex: string, payload: string): Promise<void> {
+    const offer: RTCSessionDescriptionInit = JSON.parse(payload);
+
+    // Lazily create a peer if we haven't seen this participant yet
+    // (offer arrived before handleNewParticipant fired).
+    if (!this.pcm.getPeer(fromHex)) {
       this.pcm.addPeer(fromHex);
     }
 
-    const state = this.peers.get(fromHex)!;
     const pc = this.pcm.getPeer(fromHex)!;
-    const polite = this.isPolite(fromHex);
 
-    const offerCollision =
-      state.makingOffer ||
-      (pc.signalingState !== 'stable' && pc.signalingState !== 'have-remote-offer');
+    if (pc.signalingState !== 'stable' && pc.signalingState !== 'have-remote-offer') {
+      // Non-stable, non-renegotiable state — tear down and start fresh.
+      this.teardownPeer(fromHex);
+      this.pcm.addPeer(fromHex);
+    }
 
-    // Impolite side: discard the incoming offer on collision.
-    state.ignoreOffer = !polite && offerCollision;
-    if (state.ignoreOffer) return;
+    const freshPc = this.pcm.getPeer(fromHex)!;
 
-    const offer: RTCSessionDescriptionInit = JSON.parse(payload);
     try {
-      if (offerCollision && polite) {
-        // Roll back our pending offer so we can accept the remote's.
-        await pc.setLocalDescription({ type: 'rollback' });
-        state.makingOffer = false;
-        // Rollback fires onnegotiationneeded on return to stable — suppress it.
-        state.suppressNextNegotiation = true;
-      }
+      await freshPc.setRemoteDescription(new RTCSessionDescription(offer));
+      this.remoteDescSet.add(fromHex);
+      await this.flushPendingCandidates(fromHex, freshPc);
 
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      state.remoteDescSet = true;
-      await this.flushPendingCandidates(fromHex, pc, state);
+      // Guard: connection may have been replaced during the async gap.
+      if (this.pcm.getPeer(fromHex) !== freshPc) return;
+      if (freshPc.signalingState !== 'have-remote-offer') return;
 
-      if (this.pcm.getPeer(fromHex) !== pc) return;
-      if (pc.signalingState !== 'have-remote-offer') return;
+      const answer = await freshPc.createAnswer();
+      await freshPc.setLocalDescription(answer);
 
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
       const toIdentity = this.hexToIdentity(fromHex);
-      if (!toIdentity) return;
-      this.sendSignal(fromHex, 'Answer', JSON.stringify(pc.localDescription));
+      if (!toIdentity || this.pcm.getPeer(fromHex) !== freshPc) return;
+
+      this.db.reducers.sendAnswer({
+        roomId: this.roomId,
+        toIdentity,
+        sdp: JSON.stringify(freshPc.localDescription),
+      });
     } catch {
       // SDP error — tear down so the offerer's next retry starts clean.
       this.teardownPeer(fromHex);
     }
   }
 
-  // ── Answer ─────────────────────────────────────────────────────────────
+  // ── Answer ─────────────────────────────────────────────────────────────────
 
   private async handleAnswer(fromHex: string, payload: string): Promise<void> {
-    const state = this.peers.get(fromHex);
+    const answer: RTCSessionDescriptionInit = JSON.parse(payload);
     const pc = this.pcm.getPeer(fromHex);
-    if (!state || !pc) return;
-
-    // ignoreOffer guards incoming *offers* on the impolite side; it must not
-    // gate answers — those are responses to our own offer and are always valid.
-    state.ignoreOffer = false;
-
+    if (!pc) return;
     if (pc.signalingState !== 'have-local-offer') return;
 
-    const answer: RTCSessionDescriptionInit = JSON.parse(payload);
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
-      state.remoteDescSet = true;
-      await this.flushPendingCandidates(fromHex, pc, state);
+      this.remoteDescSet.add(fromHex);
+      await this.flushPendingCandidates(fromHex, pc);
     } catch {
       // Stale answer — ignore.
     }
   }
 
-  // ── ICE candidate ──────────────────────────────────────────────────────
+  // ── ICE candidate ──────────────────────────────────────────────────────────
 
   private async handleIceCandidate(fromHex: string, payload: string): Promise<void> {
     const candidateInit: RTCIceCandidateInit = JSON.parse(payload);
@@ -281,12 +322,12 @@ export class SignalingManager {
     // Safari throws on addIceCandidate with empty candidate string.
     if (!candidateInit.candidate) return;
 
-    const state = this.peers.get(fromHex);
     const pc = this.pcm.getPeer(fromHex);
 
-    if (!state || !pc || !state.remoteDescSet) {
-      const s = state ?? this.ensurePeerState(fromHex);
-      s.pendingCandidates.push(candidateInit);
+    if (!pc || !this.remoteDescSet.has(fromHex)) {
+      const queue = this.pendingCandidates.get(fromHex) ?? [];
+      queue.push(candidateInit);
+      this.pendingCandidates.set(fromHex, queue);
       return;
     }
 
@@ -298,80 +339,26 @@ export class SignalingManager {
     }
   }
 
-  // ──────────────────────────────────────────────────────────────────────
-  // ICE restart
-  // ──────────────────────────────────────────────────────────────────────
-
-  private scheduleIceRestart(identityHex: string): void {
-    const state = this.peers.get(identityHex);
-    if (!state) return;
-    if (state.restartTimer) clearTimeout(state.restartTimer);
-    // Polite side restarts to avoid both sides restarting simultaneously.
-    if (!this.isPolite(identityHex)) return;
-
-    state.restartTimer = setTimeout(() => {
-      state.restartTimer = null;
-      const pc = this.pcm.getPeer(identityHex);
-      if (!pc) return;
-      if (pc.signalingState !== 'stable' && pc.connectionState !== 'failed') return;
-      this.sendIceRestartOffer(identityHex).catch(() => {});
-    }, 2000);
-  }
-
-  private async sendIceRestartOffer(identityHex: string): Promise<void> {
-    const state = this.peers.get(identityHex);
-    const pc = this.pcm.getPeer(identityHex);
-    if (!state || !pc) return;
-
-    state.makingOffer = true;
-    try {
-      const offer = await pc.createOffer({ iceRestart: true });
-      await pc.setLocalDescription(offer);
-      const toIdentity = this.hexToIdentity(identityHex);
-      if (!toIdentity) return;
-      this.sendSignal(identityHex, 'Offer', JSON.stringify(pc.localDescription));
-    } catch {
-      // Connection closed — ignore.
-    } finally {
-      state.makingOffer = false;
-    }
-  }
-
-  // ──────────────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────────────────
   // Helpers
-  // ──────────────────────────────────────────────────────────────────────
-
-  private isPolite(identityHex: string): boolean {
-    return this.myHex < identityHex;
-  }
-
-  private ensurePeerState(identityHex: string): PeerState {
-    if (!this.peers.has(identityHex)) {
-      this.peers.set(identityHex, {
-        makingOffer: false,
-        ignoreOffer: false,
-        pendingCandidates: [],
-        remoteDescSet: false,
-        restartTimer: null,
-        suppressNextNegotiation: false,
-      });
-    }
-    return this.peers.get(identityHex)!;
-  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   private teardownPeer(identityHex: string): void {
-    const state = this.peers.get(identityHex);
-    if (state?.restartTimer) clearTimeout(state.restartTimer);
-    this.peers.delete(identityHex);
+    const t = this.restartTimers.get(identityHex);
+    if (t) { clearTimeout(t); this.restartTimers.delete(identityHex); }
+    const r = this.renegotiationTimers.get(identityHex);
+    if (r) { clearTimeout(r); this.renegotiationTimers.delete(identityHex); }
+    this.remoteDescSet.delete(identityHex);
+    this.pendingCandidates.delete(identityHex);
+    this.offerLocks.delete(identityHex);
+    this.makingOffer.delete(identityHex);
     this.pcm.removePeer(identityHex);
   }
 
-  private async flushPendingCandidates(
-    fromHex: string,
-    pc: RTCPeerConnection,
-    state: PeerState,
-  ): Promise<void> {
-    const queue = state.pendingCandidates.splice(0);
+  private async flushPendingCandidates(fromHex: string, pc: RTCPeerConnection): Promise<void> {
+    const queue = this.pendingCandidates.get(fromHex);
+    if (!queue || queue.length === 0) return;
+    this.pendingCandidates.delete(fromHex);
     for (const c of queue) {
       if (this.pcm.getPeer(fromHex) !== pc || pc.signalingState === 'closed') break;
       if (!c.candidate) continue;
@@ -383,6 +370,12 @@ export class SignalingManager {
     }
   }
 
+  /**
+   * Replay cached signaling messages from a peer.
+   * Called after addPeer() so the RTCPeerConnection exists before we process
+   * the offer. Messages are processed sequentially so ICE candidates cannot
+   * race ahead of the offer.
+   */
   private replayForPeer(peerHex: string): void {
     const msgs: SignalingMessage[] = [];
     for (const msg of this.db.db.signaling_message.iter()) {
@@ -395,7 +388,9 @@ export class SignalingManager {
       }
     }
     msgs.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-    // Process sequentially so ICE candidates don't race ahead of the offer.
+
+    // Sequential processing: await each message so ICE candidates are not
+    // added before setRemoteDescription completes.
     const process = async () => {
       for (const msg of msgs) {
         await this.handleIncomingMessage(null, msg);
@@ -404,16 +399,14 @@ export class SignalingManager {
     process().catch(() => {});
   }
 
-  private sendSignal(toHex: string, type: 'Offer' | 'Answer' | 'IceCandidate', payload: string): void {
-    const toIdentity = this.hexToIdentity(toHex);
+  private sendIceCandidate(toIdentityHex: string, candidate: RTCIceCandidate): void {
+    const toIdentity = this.hexToIdentity(toIdentityHex);
     if (!toIdentity) return;
-    if (type === 'Offer') {
-      this.db.reducers.sendOffer({ roomId: this.roomId, toIdentity, sdp: payload });
-    } else if (type === 'Answer') {
-      this.db.reducers.sendAnswer({ roomId: this.roomId, toIdentity, sdp: payload });
-    } else {
-      this.db.reducers.sendIceCandidate({ roomId: this.roomId, toIdentity, candidateJson: payload });
-    }
+    this.db.reducers.sendIceCandidate({
+      roomId: this.roomId,
+      toIdentity,
+      candidateJson: JSON.stringify(candidate.toJSON()),
+    });
   }
 
   private hexToIdentity(hex: string): Identity | null {
