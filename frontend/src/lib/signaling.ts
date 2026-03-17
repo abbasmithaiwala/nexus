@@ -103,11 +103,26 @@ export class SignalingManager {
       suppressNextNegotiation: false,
     });
 
+    const hasCachedOffer = this.myHex < identityHex &&
+      [...this.db.db.signaling_message.iter()].some(
+        (m) =>
+          m.roomId === this.roomId &&
+          m.toIdentity.isEqual(this.myIdentity) &&
+          m.fromIdentity.toHexString() === identityHex &&
+          m.messageType.tag === 'Offer',
+      );
+
+    // If the remote already sent us an offer (cached), suppress the spurious
+    // negotiate() that addPeer fires so we don't create a glare scenario.
+    if (hasCachedOffer) {
+      this.peers.get(identityHex)!.suppressNextNegotiation = true;
+    }
+
     // addPeer triggers onnegotiationneeded → negotiate() (Chrome: synchronously
     // via addTrack; Safari: asynchronously on next microtask).
     this.pcm.addPeer(identityHex);
 
-    if (this.myHex <= identityHex) {
+    if (this.myHex < identityHex) {
       // Polite side: replay any offer the remote sent before we subscribed.
       this.replayForPeer(identityHex);
     }
@@ -380,9 +395,13 @@ export class SignalingManager {
       }
     }
     msgs.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-    for (const msg of msgs) {
-      this.handleIncomingMessage(null, msg);
-    }
+    // Process sequentially so ICE candidates don't race ahead of the offer.
+    const process = async () => {
+      for (const msg of msgs) {
+        await this.handleIncomingMessage(null, msg);
+      }
+    };
+    process().catch(() => {});
   }
 
   private sendSignal(toHex: string, type: 'Offer' | 'Answer' | 'IceCandidate', payload: string): void {

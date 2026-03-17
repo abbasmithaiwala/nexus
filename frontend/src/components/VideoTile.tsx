@@ -42,17 +42,15 @@ function Initials({ name }: { name: string }) {
   );
 }
 
-/** Attempt play(); if blocked (Safari autoplay policy), retry on first interaction. */
+/** Attempt play(); if blocked (autoplay policy), retry on next user interaction. */
 function playVideo(el: HTMLVideoElement): void {
   el.play().catch(() => {
-    // Safari blocks autoplay on unmuted remote video until user interaction.
-    // Register a one-time handler on the document that retries play().
-    const retry = () => {
-      el.play().catch(() => {});
-    };
+    const retry = () => { el.play().catch(() => {}); };
     document.addEventListener('click', retry, { once: true, passive: true });
     document.addEventListener('touchstart', retry, { once: true, passive: true });
     document.addEventListener('keydown', retry, { once: true, passive: true });
+    // Also retry when the video element itself receives focus or is clicked.
+    el.addEventListener('click', retry, { once: true, passive: true });
   });
 }
 

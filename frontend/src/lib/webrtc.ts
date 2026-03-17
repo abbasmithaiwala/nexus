@@ -71,12 +71,19 @@ export class PeerConnectionManager {
       if (existing) stream.removeTrack(existing);
       stream.addTrack(event.track);
 
-      // Safari/Firefox deliver tracks initially muted; re-fire on unmute.
-      event.track.onunmute = () => {
-        this.onRemoteStream?.(identityHex, stream!);
+      // Notify with a *new* MediaStream wrapper so that React's memo comparison
+      // always sees a changed reference and re-runs the srcObject effect, even
+      // when the same underlying stream is mutated by a later track arrival.
+      const notify = () => {
+        const snapshot = new MediaStream(stream!.getTracks());
+        this.remoteStreams.set(identityHex, snapshot);
+        this.onRemoteStream?.(identityHex, snapshot);
       };
 
-      this.onRemoteStream?.(identityHex, stream);
+      // Safari/Firefox deliver tracks initially muted; re-fire on unmute.
+      event.track.onunmute = notify;
+
+      notify();
     };
 
     // Forward unconditionally — SignalingManager's Perfect Negotiation flags

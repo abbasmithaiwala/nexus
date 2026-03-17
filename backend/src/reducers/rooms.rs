@@ -9,10 +9,12 @@ use crate::tables::{
 };
 use crate::reducers::util::sanitize_display_name;
 
-/// Delete all signaling rows involving a specific identity in a room.
+/// Delete signaling rows *sent by* a specific identity in a room.
+/// Only clears outbound messages — inbound offers from peers must not be
+/// deleted here or the new joiner will never receive them.
 fn cleanup_signaling_for_identity(ctx: &ReducerContext, room_id: u64, identity: spacetimedb::Identity) {
     let ids: Vec<u64> = ctx.db.signaling_message().signaling_by_room().filter(&room_id)
-        .filter(|msg| msg.from_identity == identity || msg.to_identity == identity)
+        .filter(|msg| msg.from_identity == identity)
         .map(|msg| msg.id)
         .collect();
     for id in ids {
