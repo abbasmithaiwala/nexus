@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Video, Link2, Loader2, Hexagon } from 'lucide-react';
+import { Video, Link2, Loader2 } from 'lucide-react';
 import { useSpacetime } from '@/hooks/useSpacetime';
 import { STORAGE_KEYS } from '@/lib/constants';
 
@@ -83,7 +83,7 @@ export function HomePage() {
       {/* Logo / brand */}
       <div className="mb-10 text-center relative z-10">
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-black mb-5 shadow-[0_0_30px_rgba(255,255,255,0.05)] border border-neutral-800">
-          <Hexagon className="w-7 h-7 text-white" strokeWidth={1.5} />
+          <img src="https://res.cloudinary.com/dbzuzz3jg/image/upload/v1773858422/nexus-logo_tcvnqf.png" alt="Nexus logo" className="w-8 h-8" />
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">Nexus</h1>
         <p className="mt-2.5 text-neutral-500 text-sm sm:text-base">
