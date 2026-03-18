@@ -1,34 +1,27 @@
 /**
- * TURN credential provisioning via Metered.ca REST API.
+ * TURN credential provisioning via a server-side edge function.
  *
- * Fetches short-lived TURN credentials from Metered on demand.
- * Set VITE_METERED_API_KEY in your .env file.
+ * The API key never leaves the server — the client only receives
+ * short-lived ICE server credentials from /api/turn-credentials.
  */
 
 export interface TurnCredentials {
   iceServers: RTCIceServer[];
 }
 
-/**
- * Fetches ICE server credentials from Metered.ca.
- * Returns empty array if no API key is configured.
- */
 export async function getTurnCredentials(): Promise<TurnCredentials> {
-  const apiKey = import.meta.env.VITE_METERED_API_KEY as string | undefined;
+  try {
+    const response = await fetch('/api/turn-credentials');
 
-  if (!apiKey) {
+    if (!response.ok) {
+      console.warn('Failed to fetch TURN credentials:', response.status);
+      return { iceServers: [] };
+    }
+
+    const iceServers: RTCIceServer[] = await response.json();
+    return { iceServers };
+  } catch (err) {
+    console.warn('TURN credentials fetch error:', err);
     return { iceServers: [] };
   }
-
-  const response = await fetch(
-    `https://nexusmeet.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`
-  );
-
-  if (!response.ok) {
-    console.warn('Failed to fetch TURN credentials from Metered:', response.status);
-    return { iceServers: [] };
-  }
-
-  const iceServers: RTCIceServer[] = await response.json();
-  return { iceServers };
 }
