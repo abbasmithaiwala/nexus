@@ -12,7 +12,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { DbConnection } from '@/module_bindings';
-import { subscribeToRoom } from '@/lib/spacetimedb';
 
 export function useRoomId(
   db: DbConnection | null,
@@ -43,15 +42,6 @@ export function useRoomId(
     db.db.room.onInsert(onInsert);
     return () => { db.db.room.removeOnInsert(onInsert); };
   }, [db]);
-
-  // Once roomId is resolved, subscribe to room-scoped tables.
-  const subscribedRoomIdRef = useRef<bigint | null>(null);
-  useEffect(() => {
-    if (!db || roomId === null) return;
-    if (subscribedRoomIdRef.current === roomId) return;
-    subscribedRoomIdRef.current = roomId;
-    subscribeToRoom(db, roomId);
-  }, [db, roomId]);
 
   return roomId;
 }
