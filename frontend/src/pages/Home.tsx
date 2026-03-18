@@ -75,21 +75,21 @@ export function HomePage() {
   const canCreate = isConnected && !!displayName.trim() && !create.loading;
 
   return (
-    <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-4 py-12">
+    <main className="min-h-screen bg-black flex flex-col items-center justify-center px-4 py-12">
       {/* Logo / brand */}
       <div className="mb-10 text-center">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-4">
           <Video className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">Nexus</h1>
-        <p className="mt-2 text-gray-400 text-base sm:text-lg">
+        <p className="mt-2 text-neutral-400 text-base sm:text-lg">
           Secure, real-time video meetings
         </p>
       </div>
 
       {/* Connection loading / reconnect state */}
       {!isConnected && !connectionError && (
-        <div className="flex items-center gap-2 text-gray-400 text-sm mb-6">
+        <div className="flex items-center gap-2 text-neutral-400 text-sm mb-6">
           <Loader2 className="w-4 h-4 animate-spin" />
           Connecting to server…
         </div>
@@ -112,7 +112,7 @@ export function HomePage() {
       <div className="w-full max-w-sm space-y-5">
         {/* Display name */}
         <div>
-          <label htmlFor="display-name" className="block text-sm text-gray-400 mb-1.5">
+          <label htmlFor="display-name" className="block text-sm text-neutral-400 mb-1.5">
             Your name
           </label>
           <input
@@ -122,7 +122,7 @@ export function HomePage() {
             onChange={(e) => persistName(e.target.value)}
             placeholder="Enter your name"
             maxLength={50}
-            className="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
+            className="w-full px-4 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
           />
         </div>
 
@@ -151,16 +151,16 @@ export function HomePage() {
 
         {/* Divider */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-gray-800" />
-          <span className="text-gray-500 text-xs">or join with a code</span>
-          <div className="flex-1 h-px bg-gray-800" />
+          <div className="flex-1 h-px bg-neutral-800" />
+          <span className="text-neutral-500 text-xs">or join with a code</span>
+          <div className="flex-1 h-px bg-neutral-800" />
         </div>
 
         {/* Join with code */}
         <form onSubmit={handleJoin} noValidate>
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
               <input
                 type="text"
                 value={join.code}
@@ -173,13 +173,13 @@ export function HomePage() {
                 }}
                 placeholder="xxx-xxxx-xxx"
                 maxLength={12}
-                className="w-full pl-9 pr-3 py-3 rounded-xl bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
+                className="w-full pl-9 pr-3 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
               />
             </div>
             <button
               type="submit"
               disabled={!join.code.trim()}
-              className="px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors whitespace-nowrap"
+              className="px-4 py-3 rounded-xl bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors whitespace-nowrap"
             >
               Join
             </button>
