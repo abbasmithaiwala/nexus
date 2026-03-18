@@ -1,17 +1,8 @@
 /**
- * ControlsBar — the bottom action bar shown during a meeting.
+ * ControlsBar — floating pill at the bottom of the meeting view.
  *
- * Provides:
- *  - Mic toggle
- *  - Camera toggle
- *  - Screen share toggle
- *  - Chat toggle (with unread badge)
- *  - Reactions button
- *  - Leave meeting
- *  - End meeting (host only)
- *
- * Desktop: icon + label below each button
- * Mobile: icons only, fixed to bottom of screen
+ * Design: Google-Meet-style floating bar — circle icon buttons, no labels,
+ * single red danger button (leave), subtle muted-state indicators.
  */
 
 import {
@@ -24,7 +15,7 @@ import {
   MessageSquare,
   Smile,
   PhoneOff,
-  CircleStop,
+  Power,
 } from 'lucide-react';
 
 export interface ControlsBarProps {
@@ -43,33 +34,27 @@ export interface ControlsBarProps {
   onEndMeeting: () => void;
 }
 
-interface ControlButtonProps {
+interface BtnProps {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
-  active?: boolean;
-  danger?: boolean;
+  /** 'muted' = on/off media toggle (red background when off) */
+  variant?: 'default' | 'muted' | 'active' | 'danger' | 'end';
   badge?: number;
   disabled?: boolean;
 }
 
-function ControlButton({
-  icon,
-  label,
-  onClick,
-  active = true,
-  danger = false,
-  badge,
-  disabled = false,
-}: ControlButtonProps) {
+function Btn({ icon, label, onClick, variant = 'default', badge, disabled = false }: BtnProps) {
   const base =
-    'relative flex flex-col items-center gap-1 px-3 py-2.5 sm:py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-1 focus-visible:ring-white/30 min-w-[44px] min-h-[44px] justify-center';
+    'relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30';
 
-  const color = danger
-    ? 'bg-red-600 hover:bg-red-500 text-white'
-    : active
-      ? 'bg-neutral-800 hover:bg-neutral-700 text-white'
-      : 'bg-red-600/90 hover:bg-red-500/90 text-white';
+  const styles: Record<string, string> = {
+    default: 'bg-neutral-800 hover:bg-neutral-700 text-white',
+    muted: 'bg-red-600/90 hover:bg-red-500 text-white',
+    active: 'bg-blue-600 hover:bg-blue-500 text-white',
+    danger: 'bg-red-600 hover:bg-red-500 text-white w-14 h-12 rounded-full',
+    end: 'bg-red-500/10 hover:bg-red-500/20 text-red-500 ring-1 ring-red-500/30 hover:ring-red-500/50',
+  };
 
   return (
     <button
@@ -77,19 +62,20 @@ function ControlButton({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className={`${base} ${color}`}
+      className={`${base} ${styles[variant]}`}
     >
       {icon}
-      <span className="hidden sm:block text-xs font-medium">{label}</span>
-
-      {/* Unread badge */}
       {badge != null && badge > 0 && (
-        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center">
+        <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
           {badge > 9 ? '9+' : badge}
         </span>
       )}
     </button>
   );
+}
+
+function Divider() {
+  return <div className="w-px h-6 bg-neutral-700/60 mx-0.5" />;
 }
 
 export function ControlsBar({
@@ -108,64 +94,66 @@ export function ControlsBar({
   onEndMeeting,
 }: ControlsBarProps) {
   return (
-    <div className="flex items-center justify-center gap-2 px-4 py-3 bg-neutral-950/95 backdrop-blur-sm border-t border-neutral-900">
-      <ControlButton
-        icon={audioEnabled ? <Mic size={20} /> : <MicOff size={20} />}
-        label={audioEnabled ? 'Mute' : 'Unmute'}
-        onClick={onToggleAudio}
-        active={audioEnabled}
-      />
+    /* Outer strip — just provides the bottom padding so reactions panel has room */
+    <div className="flex items-center justify-center px-4 pb-5 pt-2 bg-neutral-950">
+      {/* Floating pill */}
+      <div className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-neutral-900 shadow-2xl shadow-black/60 border border-neutral-800/60">
 
-      <ControlButton
-        icon={videoEnabled ? <Video size={20} /> : <VideoOff size={20} />}
-        label={videoEnabled ? 'Stop video' : 'Start video'}
-        onClick={onToggleVideo}
-        active={videoEnabled}
-      />
-
-      <ControlButton
-        icon={isScreenSharing ? <MonitorOff size={20} /> : <Monitor size={20} />}
-        label={isScreenSharing ? 'Stop share' : 'Share screen'}
-        onClick={onToggleScreenShare}
-        active={!isScreenSharing}
-      />
-
-      {/* Divider */}
-      <div className="w-px h-8 bg-neutral-800 mx-1 hidden sm:block" />
-
-      <ControlButton
-        icon={<MessageSquare size={20} />}
-        label="Chat"
-        onClick={onToggleChat}
-        active={isChatOpen}
-        badge={isChatOpen ? 0 : unreadCount}
-      />
-
-      <ControlButton
-        icon={<Smile size={20} />}
-        label="Reactions"
-        onClick={onOpenReactions}
-        active
-      />
-
-      {/* Divider */}
-      <div className="w-px h-8 bg-neutral-800 mx-1 hidden sm:block" />
-
-      <ControlButton
-        icon={<PhoneOff size={20} />}
-        label="Leave"
-        onClick={onLeave}
-        danger
-      />
-
-      {isHost && (
-        <ControlButton
-          icon={<CircleStop size={20} />}
-          label="End"
-          onClick={onEndMeeting}
-          danger
+        {/* Media controls */}
+        <Btn
+          icon={audioEnabled ? <Mic size={19} /> : <MicOff size={19} />}
+          label={audioEnabled ? 'Mute mic' : 'Unmute mic'}
+          onClick={onToggleAudio}
+          variant={audioEnabled ? 'default' : 'muted'}
         />
-      )}
+        <Btn
+          icon={videoEnabled ? <Video size={19} /> : <VideoOff size={19} />}
+          label={videoEnabled ? 'Stop camera' : 'Start camera'}
+          onClick={onToggleVideo}
+          variant={videoEnabled ? 'default' : 'muted'}
+        />
+        <Btn
+          icon={isScreenSharing ? <MonitorOff size={19} /> : <Monitor size={19} />}
+          label={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+          onClick={onToggleScreenShare}
+          variant={isScreenSharing ? 'active' : 'default'}
+        />
+
+        <Divider />
+
+        {/* Secondary controls */}
+        <Btn
+          icon={<MessageSquare size={19} />}
+          label={isChatOpen ? 'Close chat' : 'Open chat'}
+          onClick={onToggleChat}
+          variant={isChatOpen ? 'active' : 'default'}
+          badge={isChatOpen ? 0 : unreadCount}
+        />
+        <Btn
+          icon={<Smile size={19} />}
+          label="Reactions"
+          onClick={onOpenReactions}
+          variant="default"
+        />
+
+        <Divider />
+
+        {/* Leave / End */}
+        <Btn
+          icon={<PhoneOff size={19} />}
+          label="Leave meeting"
+          onClick={onLeave}
+          variant="danger"
+        />
+        {isHost && (
+          <Btn
+            icon={<Power size={19} />}
+            label="End meeting for all"
+            onClick={onEndMeeting}
+            variant="end"
+          />
+        )}
+      </div>
     </div>
   );
 }
