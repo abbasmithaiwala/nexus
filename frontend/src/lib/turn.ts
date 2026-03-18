@@ -1,17 +1,8 @@
 /**
- * TURN credential provisioning.
+ * TURN credential provisioning via Metered.ca REST API.
  *
- * Reads TURN server configuration from environment variables.
- * If no TURN server is configured, returns an empty array (STUN-only mode).
- *
- * In production, set:
- *   VITE_TURN_URL      — e.g. turn:turn.example.com:3478
- *   VITE_TURN_USERNAME — static username (or generated via HMAC)
- *   VITE_TURN_CREDENTIAL — static credential (or generated via HMAC)
- *
- * For ephemeral credentials (Coturn or Twilio), generate them server-side
- * (e.g. via a backend procedure or edge function) and pass them here at
- * runtime.  See DEPLOYMENT.md for setup instructions.
+ * Fetches short-lived TURN credentials from Metered on demand.
+ * Set VITE_METERED_API_KEY in your .env file.
  */
 
 export interface TurnCredentials {
@@ -19,21 +10,25 @@ export interface TurnCredentials {
 }
 
 /**
- * Returns ICE server configuration including any configured TURN servers.
- * Falls back to empty array if no TURN env vars are set.
+ * Fetches ICE server credentials from Metered.ca.
+ * Returns empty array if no API key is configured.
  */
-export function getTurnCredentials(): TurnCredentials {
-  const turnUrl = import.meta.env.VITE_TURN_URL as string | undefined;
-  const turnUsername = import.meta.env.VITE_TURN_USERNAME as string | undefined;
-  const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL as string | undefined;
+export async function getTurnCredentials(): Promise<TurnCredentials> {
+  const apiKey = import.meta.env.VITE_METERED_API_KEY as string | undefined;
 
-  if (!turnUrl) {
+  if (!apiKey) {
     return { iceServers: [] };
   }
 
-  const server: RTCIceServer = { urls: turnUrl };
-  if (turnUsername) server.username = turnUsername;
-  if (turnCredential) server.credential = turnCredential;
+  const response = await fetch(
+    `https://nexusmeet.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`
+  );
 
-  return { iceServers: [server] };
+  if (!response.ok) {
+    console.warn('Failed to fetch TURN credentials from Metered:', response.status);
+    return { iceServers: [] };
+  }
+
+  const iceServers: RTCIceServer[] = await response.json();
+  return { iceServers };
 }

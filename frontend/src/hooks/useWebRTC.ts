@@ -43,8 +43,6 @@ export function useWebRTC(
     if (!db || !identity || roomId == null) return;
 
     const pcm = new PeerConnectionManager();
-    const { iceServers } = getTurnCredentials();
-    if (iceServers.length > 0) pcm.setIceServers(iceServers);
     pcmRef.current = pcm;
 
     if (localStreamRef.current) {
@@ -61,7 +59,14 @@ export function useWebRTC(
 
     const sig = new SignalingManager(db, identity, roomId, pcm);
     sigRef.current = sig;
-    sig.start();
+
+    getTurnCredentials().then(({ iceServers }) => {
+      if (iceServers.length > 0) pcm.setIceServers(iceServers);
+      sig.start();
+    }).catch(() => {
+      // Fall back to STUN-only if credentials fetch fails
+      sig.start();
+    });
 
     return () => {
       sig.stop();
