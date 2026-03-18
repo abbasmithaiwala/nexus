@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Video, Link2, Loader2 } from 'lucide-react';
+import { Video, Link2, Loader2, Hexagon } from 'lucide-react';
 import { useSpacetime } from '@/hooks/useSpacetime';
 import { STORAGE_KEYS } from '@/lib/constants';
 
@@ -77,13 +77,13 @@ export function HomePage() {
     <main className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
       {/* Ambient glow — decorative only */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="w-[600px] h-[600px] rounded-full bg-blue-600/5 blur-[120px]" />
+        <div className="w-[600px] h-[600px] rounded-full bg-white/5 blur-[120px]" />
       </div>
 
       {/* Logo / brand */}
       <div className="mb-10 text-center relative z-10">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 mb-5 shadow-lg shadow-blue-600/30">
-          <Video className="w-7 h-7 text-white" />
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-black mb-5 shadow-[0_0_30px_rgba(255,255,255,0.05)] border border-neutral-800">
+          <Hexagon className="w-7 h-7 text-white" strokeWidth={1.5} />
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">Nexus</h1>
         <p className="mt-2.5 text-neutral-500 text-sm sm:text-base">
@@ -126,7 +126,7 @@ export function HomePage() {
             onChange={(e) => persistName(e.target.value)}
             placeholder="Enter your name"
             maxLength={50}
-            className="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500/50 transition text-sm"
+            className="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-white/30 focus:border-white/20 transition text-sm"
           />
         </div>
 
@@ -134,7 +134,7 @@ export function HomePage() {
         <button
           onClick={handleNewMeeting}
           disabled={!canCreate}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors shadow-lg shadow-blue-600/20"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed text-black font-semibold text-sm transition-colors shadow-[0_0_20px_rgba(255,255,255,0.15)]"
         >
           {create.loading ? (
             <>
@@ -177,7 +177,7 @@ export function HomePage() {
                 }}
                 placeholder="xxx-xxxx-xxx"
                 maxLength={12}
-                className="w-full pl-9 pr-3 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500/50 transition text-sm font-mono"
+                className="w-full pl-9 pr-3 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-white/30 focus:border-white/20 transition text-sm font-mono"
               />
             </div>
             <button

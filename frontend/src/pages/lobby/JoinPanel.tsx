@@ -37,7 +37,7 @@ export function JoinPanel({
           onChange={(e) => onNameChange(e.target.value)}
           placeholder="Enter your name"
           maxLength={50}
-          className="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500/50 transition text-sm"
+          className="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-white/30 focus:border-white/20 transition text-sm"
         />
       </div>
 
@@ -58,7 +58,7 @@ export function JoinPanel({
       <button
         onClick={onJoin}
         disabled={!canJoin}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors shadow-lg shadow-blue-600/20"
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed text-black font-semibold text-sm transition-colors shadow-[0_0_20px_rgba(255,255,255,0.15)]"
       >
         {joining ? (
           <><Loader2 className="w-4 h-4 animate-spin" />Joining…</>

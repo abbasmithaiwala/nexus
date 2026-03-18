@@ -51,7 +51,7 @@ function Btn({ icon, label, onClick, variant = 'default', badge, disabled = fals
   const styles: Record<string, string> = {
     default: 'bg-neutral-800 hover:bg-neutral-700 text-white',
     muted: 'bg-red-600/90 hover:bg-red-500 text-white',
-    active: 'bg-blue-600 hover:bg-blue-500 text-white',
+    active: 'bg-white hover:bg-neutral-200 text-black',
     danger: 'bg-red-600 hover:bg-red-500 text-white w-14 h-12 rounded-full',
     end: 'bg-red-500/10 hover:bg-red-500/20 text-red-500 ring-1 ring-red-500/30 hover:ring-red-500/50',
   };
@@ -66,7 +66,7 @@ function Btn({ icon, label, onClick, variant = 'default', badge, disabled = fals
     >
       {icon}
       {badge != null && badge > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+        <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-white text-black text-[9px] font-bold flex items-center justify-center leading-none">
           {badge > 9 ? '9+' : badge}
         </span>
       )}

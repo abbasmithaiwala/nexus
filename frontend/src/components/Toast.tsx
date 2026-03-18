@@ -50,7 +50,7 @@ export function useToast() {
 
 const ICONS: Record<ToastType, React.ReactNode> = {
   error: <AlertCircle size={16} className="shrink-0 text-red-400" />,
-  info: <Info size={16} className="shrink-0 text-blue-400" />,
+  info: <Info size={16} className="shrink-0 text-neutral-300" />,
   success: <CheckCircle size={16} className="shrink-0 text-green-400" />,
 };
 

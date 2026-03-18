@@ -36,7 +36,7 @@ function Initials({ name }: { name: string }) {
     .slice(0, 2)
     .join('');
   return (
-    <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-semibold select-none">
+    <div className="w-16 h-16 rounded-full bg-neutral-800 flex items-center justify-center text-white text-2xl font-semibold select-none border border-neutral-700">
       {initials || '?'}
     </div>
   );
@@ -45,7 +45,7 @@ function Initials({ name }: { name: string }) {
 /** Attempt play(); if blocked (autoplay policy), retry on next user interaction. */
 function playVideo(el: HTMLVideoElement): void {
   el.play().catch(() => {
-    const retry = () => { el.play().catch(() => {}); };
+    const retry = () => { el.play().catch(() => { }); };
     document.addEventListener('click', retry, { once: true, passive: true });
     document.addEventListener('touchstart', retry, { once: true, passive: true });
     document.addEventListener('keydown', retry, { once: true, passive: true });
@@ -82,23 +82,21 @@ export const VideoTile = memo(function VideoTile({
     } else {
       el.srcObject = null;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stream, trackIds]);
 
   return (
     <div
-      className={`relative w-full h-full bg-neutral-900 rounded-xl overflow-hidden flex items-center justify-center ${
-        isSpeaking ? 'ring-2 ring-blue-400' : ''
-      }`}
+      className={`relative w-full h-full bg-neutral-900 rounded-xl overflow-hidden flex items-center justify-center ${isSpeaking ? 'ring-2 ring-white/80' : ''
+        }`}
     >
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted={isLocal}
-        className={`absolute inset-0 w-full h-full ${isScreenSharing ? 'object-contain' : 'object-cover'} ${
-          mirrored && !isScreenSharing ? '-scale-x-100' : ''
-        } ${(videoEnabled || isScreenSharing) && stream ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 w-full h-full ${isScreenSharing ? 'object-contain' : 'object-cover'} ${mirrored && !isScreenSharing ? '-scale-x-100' : ''
+          } ${(videoEnabled || isScreenSharing) && stream ? 'opacity-100' : 'opacity-0'}`}
       />
 
       {((!videoEnabled && !isScreenSharing) || !stream) && (
@@ -139,7 +137,7 @@ export const VideoTile = memo(function VideoTile({
           </span>
         )}
         {isLocal && (
-          <span className="px-1.5 py-0.5 rounded bg-blue-600/90 text-white text-xs font-semibold backdrop-blur-sm">
+          <span className="px-1.5 py-0.5 rounded bg-neutral-900/90 text-white text-xs font-semibold backdrop-blur-sm border border-neutral-800">
             You
           </span>
         )}

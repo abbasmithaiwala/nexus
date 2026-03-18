@@ -33,7 +33,7 @@ export function VideoPreview({ preview }: { preview: LocalPreview }) {
               <p className="text-sm text-center px-4">
                 Camera/mic permission denied.
                 <br />
-                <button onClick={retry} className="underline text-blue-400 hover:text-blue-300 mt-1">
+                <button onClick={retry} className="underline text-neutral-300 hover:text-white mt-1">
                   Try again
                 </button>
               </p>
