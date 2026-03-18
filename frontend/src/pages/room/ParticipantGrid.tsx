@@ -46,7 +46,7 @@ export function ParticipantGrid({
   if (tiles.length === 0) {
     return (
       <div className="w-full h-full flex items-center justify-center">
-        <p className="text-gray-500">Waiting for participants…</p>
+        <p className="text-neutral-600 text-sm">Waiting for participants…</p>
       </div>
     );
   }

@@ -7,7 +7,7 @@ export function VideoPreview({ preview }: { preview: LocalPreview }) {
   const showVideo = status === 'ready' && videoEnabled;
 
   return (
-    <div className="flex-1 relative rounded-2xl overflow-hidden bg-gray-900 aspect-video sm:min-h-64 md:aspect-auto md:min-h-72">
+    <div className="flex-1 relative rounded-2xl overflow-hidden bg-neutral-900 aspect-video sm:min-h-64 md:aspect-auto md:min-h-72">
       {/* Live video — always rendered so the ref is attached; hidden when not live */}
       <video
         ref={videoRef}
@@ -20,7 +20,7 @@ export function VideoPreview({ preview }: { preview: LocalPreview }) {
 
       {/* Overlay for non-live states */}
       {!showVideo && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-gray-500">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-neutral-500">
           {status === 'loading' && (
             <>
               <Loader2 className="w-8 h-8 animate-spin" />
@@ -47,8 +47,8 @@ export function VideoPreview({ preview }: { preview: LocalPreview }) {
           )}
           {status === 'ready' && !videoEnabled && (
             <>
-              <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center">
-                <User className="w-10 h-10 text-gray-400" />
+              <div className="w-20 h-20 rounded-full bg-neutral-800 flex items-center justify-center">
+                <User className="w-10 h-10 text-neutral-500" />
               </div>
               <span className="text-sm">Camera is off</span>
             </>

@@ -40,7 +40,6 @@ export function HomePage() {
     setCreate({ loading: true, error: '' });
 
     try {
-      // Snapshot existing room IDs before the reducer fires so we can detect the new one.
       const existingIds = new Set(
         [...db.db.room.iter()].map((r) => r.roomId.toString()),
       );
@@ -75,44 +74,49 @@ export function HomePage() {
   const canCreate = isConnected && !!displayName.trim() && !create.loading;
 
   return (
-    <main className="min-h-screen bg-black flex flex-col items-center justify-center px-4 py-12">
+    <main className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
+      {/* Ambient glow — decorative only */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <div className="w-[600px] h-[600px] rounded-full bg-blue-600/5 blur-[120px]" />
+      </div>
+
       {/* Logo / brand */}
-      <div className="mb-10 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-4">
-          <Video className="w-8 h-8 text-white" />
+      <div className="mb-10 text-center relative z-10">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 mb-5 shadow-lg shadow-blue-600/30">
+          <Video className="w-7 h-7 text-white" />
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">Nexus</h1>
-        <p className="mt-2 text-neutral-400 text-base sm:text-lg">
+        <p className="mt-2.5 text-neutral-500 text-sm sm:text-base">
           Secure, real-time video meetings
         </p>
       </div>
 
-      {/* Connection loading / reconnect state */}
+      {/* Status banners */}
       {!isConnected && !connectionError && (
-        <div className="flex items-center gap-2 text-neutral-400 text-sm mb-6">
-          <Loader2 className="w-4 h-4 animate-spin" />
+        <div className="flex items-center gap-2 text-neutral-500 text-xs mb-6 relative z-10">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
           Connecting to server…
         </div>
       )}
 
       {!isConnected && connectionError && reconnectAttempt < 5 && (
-        <div className="flex items-center gap-2 text-yellow-400 text-sm mb-6">
-          <Loader2 className="w-4 h-4 animate-spin" />
+        <div className="flex items-center gap-2 text-yellow-500 text-xs mb-6 relative z-10">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
           Reconnecting… (attempt {reconnectAttempt} of 5)
         </div>
       )}
 
       {connectionError && reconnectAttempt >= 5 && (
-        <div className="mb-6 px-4 py-3 rounded-lg bg-red-900/40 border border-red-700 text-red-300 text-sm max-w-sm w-full text-center">
+        <div className="mb-6 px-4 py-3 rounded-xl bg-red-950/50 border border-red-900/60 text-red-400 text-xs max-w-sm w-full text-center relative z-10">
           Could not connect: {connectionError.message}
         </div>
       )}
 
       {/* Card */}
-      <div className="w-full max-w-sm space-y-5">
+      <div className="w-full max-w-sm relative z-10 space-y-4">
         {/* Display name */}
         <div>
-          <label htmlFor="display-name" className="block text-sm text-neutral-400 mb-1.5">
+          <label htmlFor="display-name" className="block text-xs font-medium text-neutral-500 mb-1.5 uppercase tracking-wider">
             Your name
           </label>
           <input
@@ -122,7 +126,7 @@ export function HomePage() {
             onChange={(e) => persistName(e.target.value)}
             placeholder="Enter your name"
             maxLength={50}
-            className="w-full px-4 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
+            className="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500/50 transition text-sm"
           />
         </div>
 
@@ -130,7 +134,7 @@ export function HomePage() {
         <button
           onClick={handleNewMeeting}
           disabled={!canCreate}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors shadow-lg shadow-blue-600/20"
         >
           {create.loading ? (
             <>
@@ -150,9 +154,9 @@ export function HomePage() {
         )}
 
         {/* Divider */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 py-1">
           <div className="flex-1 h-px bg-neutral-800" />
-          <span className="text-neutral-500 text-xs">or join with a code</span>
+          <span className="text-neutral-600 text-xs">or join</span>
           <div className="flex-1 h-px bg-neutral-800" />
         </div>
 
@@ -160,7 +164,7 @@ export function HomePage() {
         <form onSubmit={handleJoin} noValidate>
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600" />
               <input
                 type="text"
                 value={join.code}
@@ -173,19 +177,19 @@ export function HomePage() {
                 }}
                 placeholder="xxx-xxxx-xxx"
                 maxLength={12}
-                className="w-full pl-9 pr-3 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
+                className="w-full pl-9 pr-3 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500/50 transition text-sm font-mono"
               />
             </div>
             <button
               type="submit"
               disabled={!join.code.trim()}
-              className="px-4 py-3 rounded-xl bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors whitespace-nowrap"
+              className="px-4 py-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors border border-neutral-700 whitespace-nowrap"
             >
               Join
             </button>
           </div>
           {join.error && (
-            <p className="text-red-400 text-xs mt-1.5">{join.error}</p>
+            <p className="text-red-400 text-xs mt-2">{join.error}</p>
           )}
         </form>
       </div>
@@ -197,7 +201,6 @@ type DbType = NonNullable<ReturnType<typeof useSpacetime>['db']>;
 
 function waitForNewRoom(db: DbType, existingIds: Set<string>): Promise<string | null> {
   return new Promise((resolve) => {
-    // Check if the room already landed in the cache before we subscribed.
     for (const room of db.db.room.iter()) {
       if (!existingIds.has(room.roomId.toString())) {
         resolve(room.roomCode);
@@ -211,7 +214,7 @@ function waitForNewRoom(db: DbType, existingIds: Set<string>): Promise<string | 
     }, 10_000);
 
     function onInsert(_ctx: unknown, row: { roomCode: string; roomId: { toString(): string } }) {
-      if (existingIds.has(row.roomId.toString())) return; // not our new room
+      if (existingIds.has(row.roomId.toString())) return;
       clearTimeout(timeout);
       db.db.room.removeOnInsert(onInsert);
       resolve(row.roomCode);

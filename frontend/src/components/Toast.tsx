@@ -55,9 +55,9 @@ const ICONS: Record<ToastType, React.ReactNode> = {
 };
 
 const BG: Record<ToastType, string> = {
-  error: 'bg-red-950/90 border-red-800',
-  info: 'bg-gray-800/90 border-gray-700',
-  success: 'bg-green-950/90 border-green-800',
+  error: 'bg-red-950/90 border-red-900',
+  info: 'bg-neutral-900/90 border-neutral-800',
+  success: 'bg-green-950/90 border-green-900',
 };
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
@@ -70,7 +70,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
       <span className="flex-1 leading-snug">{toast.message}</span>
       <button
         onClick={() => onDismiss(toast.id)}
-        className="shrink-0 text-gray-400 hover:text-white transition-colors mt-0.5"
+        className="shrink-0 text-neutral-500 hover:text-white transition-colors mt-0.5"
         aria-label="Dismiss"
       >
         <X size={14} />

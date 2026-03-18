@@ -63,12 +63,12 @@ function ControlButton({
   disabled = false,
 }: ControlButtonProps) {
   const base =
-    'relative flex flex-col items-center gap-1 px-3 py-2.5 sm:py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 min-w-[44px] min-h-[44px] justify-center';
+    'relative flex flex-col items-center gap-1 px-3 py-2.5 sm:py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-1 focus-visible:ring-white/30 min-w-[44px] min-h-[44px] justify-center';
 
   const color = danger
     ? 'bg-red-600 hover:bg-red-500 text-white'
     : active
-      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+      ? 'bg-neutral-800 hover:bg-neutral-700 text-white'
       : 'bg-red-600/90 hover:bg-red-500/90 text-white';
 
   return (
@@ -84,7 +84,7 @@ function ControlButton({
 
       {/* Unread badge */}
       {badge != null && badge > 0 && (
-        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center">
+        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center">
           {badge > 9 ? '9+' : badge}
         </span>
       )}
@@ -108,7 +108,7 @@ export function ControlsBar({
   onEndMeeting,
 }: ControlsBarProps) {
   return (
-    <div className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-900/95 backdrop-blur-sm border-t border-gray-800">
+    <div className="flex items-center justify-center gap-2 px-4 py-3 bg-neutral-950/95 backdrop-blur-sm border-t border-neutral-900">
       <ControlButton
         icon={audioEnabled ? <Mic size={20} /> : <MicOff size={20} />}
         label={audioEnabled ? 'Mute' : 'Unmute'}
@@ -131,7 +131,7 @@ export function ControlsBar({
       />
 
       {/* Divider */}
-      <div className="w-px h-8 bg-gray-700 mx-1 hidden sm:block" />
+      <div className="w-px h-8 bg-neutral-800 mx-1 hidden sm:block" />
 
       <ControlButton
         icon={<MessageSquare size={20} />}
@@ -149,7 +149,7 @@ export function ControlsBar({
       />
 
       {/* Divider */}
-      <div className="w-px h-8 bg-gray-700 mx-1 hidden sm:block" />
+      <div className="w-px h-8 bg-neutral-800 mx-1 hidden sm:block" />
 
       <ControlButton
         icon={<PhoneOff size={20} />}

@@ -74,18 +74,18 @@ export function LobbyPage() {
   const canJoin = isConnected && !!displayName.trim() && !joining;
 
   return (
-    <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-4 py-8 md:py-12">
+    <main className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center px-4 py-8 md:py-12">
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="mb-6 text-center">
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Ready to join?</h1>
           {roomCode && (
             <div className="mt-2 inline-flex items-center gap-2">
-              <span className="text-gray-400 text-sm font-mono">{roomCode}</span>
+              <span className="text-neutral-400 text-sm font-mono">{roomCode}</span>
               <button
                 onClick={copyCode}
                 title="Copy meeting code"
-                className="p-1 rounded-md text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
+                className="p-1 rounded-md text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-colors"
               >
                 {copied
                   ? <Check className="w-3.5 h-3.5 text-green-400" />

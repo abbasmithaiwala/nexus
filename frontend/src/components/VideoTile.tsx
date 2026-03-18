@@ -36,7 +36,7 @@ function Initials({ name }: { name: string }) {
     .slice(0, 2)
     .join('');
   return (
-    <div className="w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-semibold select-none">
+    <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-semibold select-none">
       {initials || '?'}
     </div>
   );
@@ -87,8 +87,8 @@ export const VideoTile = memo(function VideoTile({
 
   return (
     <div
-      className={`relative w-full h-full bg-gray-900 rounded-xl overflow-hidden flex items-center justify-center ${
-        isSpeaking ? 'ring-2 ring-indigo-400' : ''
+      className={`relative w-full h-full bg-neutral-900 rounded-xl overflow-hidden flex items-center justify-center ${
+        isSpeaking ? 'ring-2 ring-blue-400' : ''
       }`}
     >
       <video
@@ -104,7 +104,7 @@ export const VideoTile = memo(function VideoTile({
       {((!videoEnabled && !isScreenSharing) || !stream) && (
         <div className="flex flex-col items-center gap-2">
           <Initials name={displayName} />
-          <span className="text-gray-300 text-sm font-medium">{displayName}</span>
+          <span className="text-neutral-300 text-sm font-medium">{displayName}</span>
         </div>
       )}
 
@@ -139,7 +139,7 @@ export const VideoTile = memo(function VideoTile({
           </span>
         )}
         {isLocal && (
-          <span className="px-1.5 py-0.5 rounded bg-indigo-600/90 text-white text-xs font-semibold backdrop-blur-sm">
+          <span className="px-1.5 py-0.5 rounded bg-blue-600/90 text-white text-xs font-semibold backdrop-blur-sm">
             You
           </span>
         )}

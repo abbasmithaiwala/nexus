@@ -27,7 +27,7 @@ export function JoinPanel({
     <div className="md:w-72 flex flex-col justify-center gap-5">
       {/* Display name */}
       <div>
-        <label htmlFor="display-name" className="block text-sm text-gray-400 mb-1.5">
+        <label htmlFor="display-name" className="block text-xs font-medium text-neutral-500 mb-1.5 uppercase tracking-wider">
           Your name
         </label>
         <input
@@ -37,18 +37,18 @@ export function JoinPanel({
           onChange={(e) => onNameChange(e.target.value)}
           placeholder="Enter your name"
           maxLength={50}
-          className="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
+          className="w-full px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500/50 transition text-sm"
         />
       </div>
 
       {/* Media state summary */}
-      <div className="flex items-center gap-3 text-sm">
-        <span className={`flex items-center gap-1.5 ${audioEnabled ? 'text-gray-300' : 'text-gray-500 line-through'}`}>
+      <div className="flex items-center gap-3 text-xs">
+        <span className={`flex items-center gap-1.5 ${audioEnabled ? 'text-neutral-300' : 'text-neutral-600 line-through'}`}>
           <Mic className="w-3.5 h-3.5" />
           {audioEnabled ? 'Mic on' : 'Mic off'}
         </span>
-        <span className="text-gray-700">·</span>
-        <span className={`flex items-center gap-1.5 ${videoEnabled ? 'text-gray-300' : 'text-gray-500 line-through'}`}>
+        <span className="text-neutral-700">·</span>
+        <span className={`flex items-center gap-1.5 ${videoEnabled ? 'text-neutral-300' : 'text-neutral-600 line-through'}`}>
           <Video className="w-3.5 h-3.5" />
           {videoEnabled ? 'Camera on' : 'Camera off'}
         </span>
@@ -58,7 +58,7 @@ export function JoinPanel({
       <button
         onClick={onJoin}
         disabled={!canJoin}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors shadow-lg shadow-blue-600/20"
       >
         {joining ? (
           <><Loader2 className="w-4 h-4 animate-spin" />Joining…</>
@@ -70,7 +70,7 @@ export function JoinPanel({
       {joinError && <p className="text-red-400 text-xs text-center">{joinError}</p>}
 
       {!isConnected && (
-        <p className="flex items-center justify-center gap-1.5 text-gray-500 text-xs">
+        <p className="flex items-center justify-center gap-1.5 text-neutral-600 text-xs">
           <Loader2 className="w-3 h-3 animate-spin" />
           Connecting to server…
         </p>

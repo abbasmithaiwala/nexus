@@ -125,14 +125,14 @@ export function RoomPage() {
 
   if (!isConnected && reconnectAttempt === 0) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <p className="text-gray-400 animate-pulse">Connecting…</p>
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <p className="text-neutral-500 animate-pulse text-sm">Connecting…</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 overflow-hidden">
+    <div className="flex flex-col h-screen bg-neutral-950 overflow-hidden">
       <RoomHeader roomCode={roomCode ?? ''} participantCount={participants.length} />
 
       <div className="flex flex-1 min-h-0 relative">
@@ -151,7 +151,7 @@ export function RoomPage() {
         {isChatOpen && (
           <div className="absolute inset-0 z-10 md:static md:inset-auto md:z-auto flex">
             <div
-              className="flex-1 bg-gray-950/60 md:hidden"
+              className="flex-1 bg-neutral-950/70 md:hidden"
               onClick={() => setIsChatOpen(false)}
             />
             <ChatPanel

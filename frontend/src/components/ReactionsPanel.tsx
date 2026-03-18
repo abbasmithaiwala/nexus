@@ -38,7 +38,7 @@ export function ReactionsPanel({ db, roomId, onClose }: ReactionsPanelProps) {
   return (
     <div
       ref={panelRef}
-      className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 border border-gray-700 rounded-2xl px-3 py-2 shadow-xl z-50 flex gap-1"
+      className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-neutral-900 border border-neutral-800 rounded-2xl px-3 py-2 shadow-xl z-50 flex gap-1"
       role="dialog"
       aria-label="Emoji reactions"
     >
@@ -46,7 +46,7 @@ export function ReactionsPanel({ db, roomId, onClose }: ReactionsPanelProps) {
         <button
           key={emoji}
           onClick={() => handleEmoji(emoji)}
-          className="text-2xl hover:scale-125 transition-transform active:scale-110 p-1 rounded-lg hover:bg-gray-700"
+          className="text-2xl hover:scale-125 transition-transform active:scale-110 p-1 rounded-lg hover:bg-neutral-800"
           aria-label={`React with ${emoji}`}
         >
           {emoji}

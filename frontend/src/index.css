@@ -15,16 +15,26 @@ body,
 }
 
 body {
-  font-family: 'Google Sans', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', 'Google Sans', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #030712; /* gray-950 */
-  color: #f9fafb; /* gray-50 */
+  background: #0a0a0a; /* neutral-950 */
+  color: #fafafa;      /* neutral-50  */
+}
+
+/* Subtle scanline / grain texture for depth */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='rgba(255,255,255,0.015)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* Floating emoji reaction animation */
 @keyframes float-up {
-  0%   { transform: translateY(0) scale(1);   opacity: 1; }
+  0%   { transform: translateY(0) scale(1);      opacity: 1; }
   70%  { transform: translateY(-60px) scale(1.3); opacity: 0.9; }
   100% { transform: translateY(-90px) scale(0.9); opacity: 0; }
 }
@@ -34,3 +44,9 @@ body {
   pointer-events: none;
   user-select: none;
 }
+
+/* Scrollbar — minimal dark */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
