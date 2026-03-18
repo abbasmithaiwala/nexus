@@ -125,14 +125,14 @@ export function RoomPage() {
 
   if (!isConnected && reconnectAttempt === 0) {
     return (
-      <div className="h-screen bg-neutral-950 flex items-center justify-center overflow-hidden">
+      <div className="bg-neutral-950 flex items-center justify-center overflow-hidden" style={{ height: '100dvh' }}>
         <p className="text-neutral-500 animate-pulse text-sm">Connecting…</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-neutral-950 overflow-hidden">
+    <div className="flex flex-col bg-neutral-950 overflow-hidden" style={{ height: '100dvh' }}>
       <RoomHeader roomCode={roomCode ?? ''} participantCount={participants.length} />
 
       <div className="flex flex-1 min-h-0 relative">

@@ -74,7 +74,7 @@ export function HomePage() {
   const canCreate = isConnected && !!displayName.trim() && !create.loading;
 
   return (
-    <main className="h-screen bg-neutral-950 flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden">
+    <main className="bg-neutral-950 flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden" style={{ height: '100dvh' }}>
       {/* Ambient glow — decorative only */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
         <div className="w-[600px] h-[600px] rounded-full bg-white/5 blur-[120px]" />

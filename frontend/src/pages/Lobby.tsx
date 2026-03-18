@@ -74,7 +74,7 @@ export function LobbyPage() {
   const canJoin = isConnected && !!displayName.trim() && !joining;
 
   return (
-    <main className="h-screen bg-neutral-950 flex flex-col items-center justify-center px-4 py-6 overflow-hidden">
+    <main className="bg-neutral-950 flex flex-col items-center justify-center px-4 py-6 overflow-hidden" style={{ height: '100dvh' }}>
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="mb-6 text-center">
