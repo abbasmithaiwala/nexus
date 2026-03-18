@@ -95,7 +95,7 @@ export function ControlsBar({
 }: ControlsBarProps) {
   return (
     /* Outer strip — just provides the bottom padding so reactions panel has room */
-    <div className="flex items-center justify-center px-4 pb-5 pt-2 bg-neutral-950">
+    <div className="flex items-center justify-center px-4 pt-2 bg-neutral-950" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
       {/* Floating pill */}
       <div className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-neutral-900 shadow-2xl shadow-black/60 border border-neutral-800/60">
 
