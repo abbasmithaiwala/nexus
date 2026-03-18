@@ -6,8 +6,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { Send, X } from 'lucide-react';
-import type { DbConnection } from '@/module_bindings';
-import { useChatMessages, formatMessageTime } from '@/hooks/useChatMessages';
+import { formatMessageTime } from '@/hooks/useChatMessages';
 import type { ChatMessage } from '@/hooks/useChatMessages';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -66,7 +65,7 @@ function ChatInput({
           className="flex-1 bg-transparent text-sm text-white placeholder-neutral-600 outline-none"
         />
         <button
-          onClick={handleSend}
+          onMouseDown={(e) => { e.preventDefault(); handleSend(); }}
           disabled={!input.trim()}
           className="text-neutral-300 hover:text-white disabled:text-neutral-700 disabled:cursor-not-allowed transition-colors shrink-0"
           aria-label="Send message"
@@ -81,17 +80,14 @@ function ChatInput({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export interface ChatPanelProps {
-  db: DbConnection | null;
-  roomId: bigint | null;
-  myDisplayName: string;
+  messages: ChatMessage[];
+  onSend: (text: string) => void;
   onClose: () => void;
-  onNewMessage?: () => void;
 }
 
 const MAX_VISIBLE = 100;
 
-export function ChatPanel({ db, roomId, myDisplayName, onClose, onNewMessage }: ChatPanelProps) {
-  const { messages, send } = useChatMessages({ db, roomId, myDisplayName, onNewMessage });
+export function ChatPanel({ messages, onSend, onClose }: ChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const visibleMessages = useMemo(
@@ -136,7 +132,7 @@ export function ChatPanel({ db, roomId, myDisplayName, onClose, onNewMessage }: 
         <div ref={bottomRef} />
       </div>
 
-      <ChatInput onSend={send} />
+      <ChatInput onSend={onSend} />
     </div>
   );
 }

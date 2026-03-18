@@ -16,11 +16,23 @@ import { useEffect, useRef, useState } from 'react';
 import type { DbConnection } from '@/module_bindings';
 import type { Participant } from '@/module_bindings/types';
 
+interface UseParticipantsOptions {
+  onJoin?: (participant: Participant) => void;
+  onLeave?: (participant: Participant) => void;
+}
+
 export function useParticipants(
   db: DbConnection | null,
   roomId: bigint | null,
+  options?: UseParticipantsOptions,
 ): Participant[] {
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const participantsRef = useRef<Participant[]>([]);
+
+  const onJoinRef = useRef(options?.onJoin);
+  const onLeaveRef = useRef(options?.onLeave);
+  onJoinRef.current = options?.onJoin;
+  onLeaveRef.current = options?.onLeave;
 
   // Keep roomId in a ref so handlers always read the latest value.
   const roomIdRef = useRef(roomId);
@@ -29,6 +41,7 @@ export function useParticipants(
   // Reload the snapshot whenever roomId becomes known (or db reconnects).
   useEffect(() => {
     if (!db || roomId == null) {
+      participantsRef.current = [];
       setParticipants([]);
       return;
     }
@@ -36,6 +49,7 @@ export function useParticipants(
     for (const p of db.db.participant.participant_by_room.filter(roomId)) {
       if (p.leftAt == null) snapshot.push(p as Participant);
     }
+    participantsRef.current = snapshot;
     setParticipants(snapshot);
   }, [db, roomId]);
 
@@ -45,25 +59,31 @@ export function useParticipants(
 
     function onInsert(_ctx: unknown, row: Participant) {
       if (row.roomId !== roomIdRef.current || row.leftAt != null) return;
-      setParticipants((prev) => {
-        if (prev.some((p) => p.participantId === row.participantId)) return prev;
-        return [...prev, row];
-      });
+      if (participantsRef.current.some((p) => p.participantId === row.participantId)) return;
+      participantsRef.current = [...participantsRef.current, row];
+      setParticipants(participantsRef.current);
+      onJoinRef.current?.(row);
     }
 
     function onUpdate(_ctx: unknown, _old: Participant, newRow: Participant) {
       if (newRow.roomId !== roomIdRef.current) return;
-      setParticipants((prev) => {
-        if (newRow.leftAt != null) {
-          return prev.filter((p) => p.participantId !== newRow.participantId);
-        }
-        return prev.map((p) => (p.participantId === newRow.participantId ? newRow : p));
-      });
+      if (newRow.leftAt != null) {
+        const wasPresent = participantsRef.current.some((p) => p.participantId === newRow.participantId);
+        participantsRef.current = participantsRef.current.filter((p) => p.participantId !== newRow.participantId);
+        setParticipants(participantsRef.current);
+        if (wasPresent) onLeaveRef.current?.(newRow);
+        return;
+      }
+      participantsRef.current = participantsRef.current.map((p) =>
+        p.participantId === newRow.participantId ? newRow : p,
+      );
+      setParticipants(participantsRef.current);
     }
 
     function onDelete(_ctx: unknown, row: Participant) {
       if (row.roomId !== roomIdRef.current) return;
-      setParticipants((prev) => prev.filter((p) => p.participantId !== row.participantId));
+      participantsRef.current = participantsRef.current.filter((p) => p.participantId !== row.participantId);
+      setParticipants(participantsRef.current);
     }
 
     db.db.participant.onInsert(onInsert);

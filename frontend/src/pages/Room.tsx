@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 
+import type { Participant } from '@/module_bindings/types';
 import { useSpacetime } from '@/hooks/useSpacetime';
 import { useLocalStream } from '@/hooks/useLocalStream';
 import { useRoomId } from '@/hooks/useRoomId';
@@ -17,7 +18,9 @@ import { useRoomLifecycle } from '@/hooks/useRoomLifecycle';
 import { useMediaStateSync } from '@/hooks/useMediaStateSync';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { useReactions } from '@/hooks/useReactions';
+import { useChatMessages } from '@/hooks/useChatMessages';
 import { useToast, ToastContainer } from '@/components/Toast';
+import { playJoinSound, playLeaveSound } from '@/lib/sounds';
 
 import { ControlsBar } from '@/components/ControlsBar';
 import { ReactionsPanel } from '@/components/ReactionsPanel';
@@ -29,12 +32,34 @@ export function RoomPage() {
   const { roomCode } = useParams<{ roomCode: string }>();
   const navigate = useNavigate();
   const { db, identity, isConnected, connectionError, reconnectAttempt } = useSpacetime();
-  const { toasts, showToast, dismiss } = useToast();
+  const { toasts, showToast, dismiss, registerExitTrigger } = useToast();
 
   const local = useLocalStream();
   const roomId = useRoomId(db, roomCode);
-  const participants = useParticipants(db, roomId);
-  const { handleLeave, handleEndMeeting } = useRoomLifecycle(db, roomId, roomCode);
+
+  const handleParticipantJoin = useCallback((p: Participant) => {
+    playJoinSound();
+    if (identity && p.identity.isEqual(identity)) return; // don't toast for self
+    showToast({ message: `${p.displayName} joined`, title: p.displayName, subtitle: 'Joined the meeting', type: 'info', durationMs: 3000 });
+  }, [identity, showToast]);
+
+  const handleParticipantLeave = useCallback((p: Participant) => {
+    playLeaveSound();
+    if (identity && p.identity.isEqual(identity)) return; // don't toast for self
+    showToast({ message: `${p.displayName} left`, title: p.displayName, subtitle: 'Left the meeting', type: 'info', durationMs: 3000 });
+  }, [identity, showToast]);
+
+  const handleRoomEnded = useCallback(() => {
+    showToast({ message: 'The meeting has been ended by the host', type: 'info', durationMs: 4000 });
+  }, [showToast]);
+
+  const participants = useParticipants(db, roomId, {
+    onJoin: handleParticipantJoin,
+    onLeave: handleParticipantLeave,
+  });
+  const { handleLeave, handleEndMeeting } = useRoomLifecycle(db, roomId, roomCode, {
+    onRoomEnded: handleRoomEnded,
+  });
   const remoteStreams = useWebRTC(db, identity, roomId, participants, local.stream);
   const floatingReactions = useReactions(db, roomId);
 
@@ -134,6 +159,13 @@ export function RoomPage() {
   const isHost = myParticipant?.isHost ?? false;
   const myDisplayName = myParticipant?.displayName ?? '';
 
+  const { messages: chatMessages, send: sendChatMessage } = useChatMessages({
+    db,
+    roomId,
+    myDisplayName,
+    onNewMessage: handleNewMessage,
+  });
+
   const handleToggleScreenShare = useCallback(() => {
     if (local.isScreenSharing) local.stopScreenShare();
     else local.startScreenShare();
@@ -171,11 +203,9 @@ export function RoomPage() {
               onClick={() => setIsChatOpen(false)}
             />
             <ChatPanel
-              db={db}
-              roomId={roomId}
-              myDisplayName={myDisplayName}
+              messages={chatMessages}
+              onSend={sendChatMessage}
               onClose={handleCloseChat}
-              onNewMessage={handleNewMessage}
             />
           </div>
         )}
@@ -208,7 +238,7 @@ export function RoomPage() {
         />
       </div>
 
-      <ToastContainer toasts={toasts} onDismiss={dismiss} />
+      <ToastContainer toasts={toasts} onDismiss={dismiss} registerExitTrigger={registerExitTrigger} />
     </div>
   );
 }

@@ -67,9 +67,7 @@ function Btn({ icon, label, onClick, variant = 'default', badge, disabled = fals
     >
       {icon}
       {badge != null && badge > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-white text-black text-[9px] font-bold flex items-center justify-center leading-none">
-          {badge > 9 ? '9+' : badge}
-        </span>
+        <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-white" />
       )}
     </button>
   );

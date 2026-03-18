@@ -94,7 +94,7 @@ export function useChatMessages({
       if (!msg) return;
       setMessages((prev) => {
         if (prev.some((m) => m.eventId === msg.eventId)) return prev;
-        onNewMessageRef.current?.();
+        if (!msg.isMe) onNewMessageRef.current?.();
         return [...prev, msg];
       });
     };

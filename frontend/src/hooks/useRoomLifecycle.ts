@@ -19,12 +19,20 @@ interface RoomLifecycle {
   handleEndMeeting: () => Promise<void>;
 }
 
+interface UseRoomLifecycleOptions {
+  onRoomEnded?: () => void;
+}
+
 export function useRoomLifecycle(
   db: DbConnection | null,
   roomId: bigint | null,
   roomCode: string | undefined,
+  options?: UseRoomLifecycleOptions,
 ): RoomLifecycle {
   const navigate = useNavigate();
+
+  const onRoomEndedRef = useRef(options?.onRoomEnded);
+  onRoomEndedRef.current = options?.onRoomEnded;
 
   // Keep mutable values in refs so the stable handler always reads the latest.
   const roomCodeRef = useRef(roomCode);
@@ -42,7 +50,9 @@ export function useRoomLifecycle(
       newRow: { roomCode: string; status: { tag: string } },
     ) {
       if (newRow.roomCode === roomCodeRef.current && newRow.status.tag === 'Ended') {
-        navigateRef.current('/');
+        onRoomEndedRef.current?.();
+        // Delay navigation slightly so the toast has time to render.
+        setTimeout(() => navigateRef.current('/'), 2000);
       }
     }
 
