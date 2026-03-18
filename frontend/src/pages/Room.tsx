@@ -44,6 +44,22 @@ export function RoomPage() {
     isScreenSharing: local.isScreenSharing,
   });
 
+  // ── Redirect to lobby if not a participant ────────────────────────────────
+  // Three-state: null = not yet determined, true/false = result of check.
+  const [isParticipantChecked, setIsParticipantChecked] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!isConnected || !db || roomId == null || !identity) return;
+    const isParticipant = [...db.db.participant.participant_by_room.filter(roomId)].some(
+      (p) => p.leftAt == null && p.identity.isEqual(identity),
+    );
+    if (!isParticipant) {
+      navigate(`/lobby/${roomCode}`, { replace: true });
+    } else {
+      setIsParticipantChecked(true);
+    }
+  }, [isConnected, db, roomId, identity, roomCode, navigate]);
+
   // ── Toast for connection errors ───────────────────────────────────────────
   const shownErrorRef = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -123,7 +139,7 @@ export function RoomPage() {
     else local.startScreenShare();
   }, [local]);
 
-  if (!isConnected && reconnectAttempt === 0) {
+  if (!isConnected && reconnectAttempt === 0 || isParticipantChecked !== true) {
     return (
       <div className="bg-neutral-950 flex items-center justify-center overflow-hidden" style={{ height: '100dvh' }}>
         <p className="text-neutral-500 animate-pulse text-sm">Connecting…</p>
