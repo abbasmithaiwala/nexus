@@ -60,7 +60,10 @@ export function buildConnection(
       _token = token;
       saveToken(token);
 
-      // Subscribe to all tables after connecting
+      // Subscribe to global tables after connecting.
+      // Room-scoped tables (participant, room_event, signaling_message) are
+      // subscribed separately via subscribeToRoom() once the room_id is known,
+      // to avoid full-table sequential scans.
       conn
         .subscriptionBuilder()
         .onApplied(() => {
@@ -69,9 +72,6 @@ export function buildConnection(
         .subscribe([
           'SELECT * FROM user',
           'SELECT * FROM room',
-          'SELECT * FROM participant',
-          'SELECT * FROM room_event',
-          'SELECT * FROM signaling_message',
         ]);
     })
     .onDisconnect((_ctx, error) => {
@@ -94,4 +94,23 @@ export function disconnect(): void {
     _identity = undefined;
     _token = undefined;
   }
+}
+
+/**
+ * Subscribe to room-scoped tables filtered by room_id.
+ * Call this after joining or creating a room.
+ */
+/**
+ * Subscribe to room-scoped tables filtered by room_id.
+ * Call this after joining or creating a room.
+ */
+export function subscribeToRoom(conn: DbConnection, roomId: bigint): void {
+  const id = roomId.toString();
+  conn
+    .subscriptionBuilder()
+    .subscribe([
+      `SELECT * FROM participant WHERE room_id = ${id}`,
+      `SELECT * FROM room_event WHERE room_id = ${id}`,
+      `SELECT * FROM signaling_message WHERE room_id = ${id}`,
+    ]);
 }

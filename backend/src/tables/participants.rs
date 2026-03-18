@@ -7,7 +7,10 @@ pub struct MediaState {
     pub is_screen_sharing: bool,
 }
 
-#[spacetimedb::table(accessor = participant, public, index(accessor = participant_by_room, btree(columns = [room_id])))]
+#[spacetimedb::table(accessor = participant, public,
+    index(accessor = participant_by_room, btree(columns = [room_id])),
+    index(accessor = participant_by_identity, btree(columns = [identity]))
+)]
 pub struct Participant {
     #[primary_key]
     #[auto_inc]
