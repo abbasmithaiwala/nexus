@@ -74,7 +74,7 @@ export function LobbyPage() {
   const canJoin = isConnected && !!displayName.trim() && !joining;
 
   return (
-    <main className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center px-4 py-8 md:py-12">
+    <main className="h-screen bg-neutral-950 flex flex-col items-center justify-center px-4 py-6 overflow-hidden">
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="mb-6 text-center">

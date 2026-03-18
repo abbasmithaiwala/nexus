@@ -125,7 +125,7 @@ export function RoomPage() {
 
   if (!isConnected && reconnectAttempt === 0) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+      <div className="h-screen bg-neutral-950 flex items-center justify-center overflow-hidden">
         <p className="text-neutral-500 animate-pulse text-sm">Connecting…</p>
       </div>
     );
