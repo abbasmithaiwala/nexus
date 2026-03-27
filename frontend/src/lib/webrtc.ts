@@ -30,6 +30,7 @@ export class PeerConnectionManager {
   onIceCandidate: ((identityHex: string, candidate: RTCIceCandidate) => void) | null = null;
   onNegotiationNeeded: ((identityHex: string) => void) | null = null;
   onConnectionFailed: ((identityHex: string) => void) | null = null;
+  onConnectionRestored: ((identityHex: string) => void) | null = null;
 
   setIceServers(servers: RTCIceServer[]): void {
     this.extraIceServers = servers;
@@ -49,6 +50,8 @@ export class PeerConnectionManager {
 
     const pc = new RTCPeerConnection({
       iceServers: [...ICE_SERVERS, ...this.extraIceServers],
+      bundlePolicy: 'max-bundle',
+      rtcpMuxPolicy: 'require',
     });
 
     this.peers.set(identityHex, pc);
@@ -97,6 +100,8 @@ export class PeerConnectionManager {
       const s = pc.connectionState;
       if (s === 'failed' || s === 'disconnected') {
         this.onConnectionFailed?.(identityHex);
+      } else if (s === 'connected') {
+        this.onConnectionRestored?.(identityHex);
       }
     };
 
@@ -144,6 +149,22 @@ export class PeerConnectionManager {
     }
   }
 
+  private applyVideoEncodingParams(sender: RTCRtpSender): void {
+    // setParameters is async and may fail before negotiation completes — retry once after a short delay.
+    const apply = () => {
+      const params = sender.getParameters();
+      if (!params.encodings || params.encodings.length === 0) {
+        params.encodings = [{}];
+      }
+      params.encodings[0].maxBitrate = 1_200_000; // 1.2 Mbps ceiling; browser degrades gracefully below this
+      params.encodings[0].maxFramerate = 30;
+      sender.setParameters(params).catch(() => {});
+    };
+    apply();
+    // Retry after negotiation settles in case the first call was too early.
+    setTimeout(apply, 2000);
+  }
+
   private syncTracksToPeer(identityHex: string, pc: RTCPeerConnection, stream: MediaStream): void {
     const streamKinds = new Set(stream.getTracks().map((t) => t.kind));
     const peerSenderKinds = this.senderKinds.get(identityHex) ?? new Map<RTCRtpSender, string>();
@@ -156,10 +177,12 @@ export class PeerConnectionManager {
 
       if (existing) {
         existing.replaceTrack(track).catch(() => {});
+        if (track.kind === 'video') this.applyVideoEncodingParams(existing);
       } else {
         const sender = pc.addTrack(track, stream);
         peerSenderKinds.set(sender, track.kind);
         this.senderKinds.set(identityHex, peerSenderKinds);
+        if (track.kind === 'video') this.applyVideoEncodingParams(sender);
       }
     }
 

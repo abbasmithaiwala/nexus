@@ -65,7 +65,14 @@ export function useLocalStream(): LocalStream {
       if (!cancelled) setStream(s);
     } else {
       navigator.mediaDevices
-        .getUserMedia({ video: wantsVideo, audio: wantsAudio })
+        .getUserMedia({
+          video: wantsVideo
+            ? { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 30, max: 30 } }
+            : false,
+          audio: wantsAudio
+            ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000 }
+            : false,
+        })
         .then((s) => {
           if (cancelled) { s.getTracks().forEach((t) => t.stop()); return; }
           // Apply toggle state that may have changed while getUserMedia was
@@ -118,7 +125,10 @@ export function useLocalStream(): LocalStream {
     } else {
       // Re-acquire the mic.
       navigator.mediaDevices
-        .getUserMedia({ audio: true, video: false })
+        .getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000 },
+          video: false,
+        })
         .then((s) => {
           const newTrack = s.getAudioTracks()[0];
           if (!newTrack || !streamRef.current) return;
@@ -148,7 +158,10 @@ export function useLocalStream(): LocalStream {
     } else {
       // Re-acquire the camera.
       navigator.mediaDevices
-        .getUserMedia({ video: true, audio: false })
+        .getUserMedia({
+          video: { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 30, max: 30 } },
+          audio: false,
+        })
         .then((s) => {
           const newTrack = s.getVideoTracks()[0];
           if (!newTrack || !streamRef.current) return;
@@ -192,7 +205,10 @@ export function useLocalStream(): LocalStream {
         if (videoEnabledRef.current) {
           // Re-acquire the camera track.
           navigator.mediaDevices
-            .getUserMedia({ video: true, audio: false })
+            .getUserMedia({
+              video: { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 30, max: 30 } },
+              audio: false,
+            })
             .then((s) => {
               const newTrack = s.getVideoTracks()[0];
               if (!newTrack || !streamRef.current) return;
@@ -226,7 +242,10 @@ export function useLocalStream(): LocalStream {
     if (videoEnabledRef.current) {
       // Re-acquire the camera.
       navigator.mediaDevices
-        .getUserMedia({ video: true, audio: false })
+        .getUserMedia({
+          video: { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 30, max: 30 } },
+          audio: false,
+        })
         .then((s) => {
           const newTrack = s.getVideoTracks()[0];
           if (!newTrack || !streamRef.current) return;

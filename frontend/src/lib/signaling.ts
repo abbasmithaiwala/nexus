@@ -25,6 +25,29 @@ import type { DbConnection } from '@/module_bindings';
 import type { SignalingMessage } from '@/module_bindings/types';
 import type { PeerConnectionManager } from './webrtc';
 
+/**
+ * Reorder the m=video payload types so the preferred codec appears first.
+ * The browser honours the ordering during codec negotiation.
+ */
+function preferVideoCodec(sdp: string, codec: 'VP9' | 'VP8' | 'H264'): string {
+  const lines = sdp.split('\r\n');
+  const videoLineIdx = lines.findIndex((l) => l.startsWith('m=video'));
+  if (videoLineIdx === -1) return sdp;
+
+  const codecPts = lines
+    .filter((l) => l.startsWith('a=rtpmap:') && l.toLowerCase().includes(codec.toLowerCase()))
+    .map((l) => l.split(':')[1].split(' ')[0]);
+
+  if (codecPts.length === 0) return sdp;
+
+  const mParts = lines[videoLineIdx].split(' ');
+  const header = mParts.slice(0, 3);
+  const pts = mParts.slice(3);
+  const reordered = [...codecPts, ...pts.filter((p) => !codecPts.includes(p))];
+  lines[videoLineIdx] = [...header, ...reordered].join(' ');
+  return lines.join('\r\n');
+}
+
 export class SignalingManager {
   private db: DbConnection;
   private myIdentity: Identity;
@@ -49,6 +72,9 @@ export class SignalingManager {
 
   /** ICE restart timers — one per peer */
   private restartTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /** Consecutive ICE restart attempts per peer — reset on successful connection */
+  private iceRestartAttempts = new Map<string, number>();
 
   private boundOnInsert: (ctx: unknown, row: SignalingMessage) => void;
 
@@ -78,6 +104,10 @@ export class SignalingManager {
     this.pcm.onConnectionFailed = (identityHex) => {
       this.scheduleIceRestart(identityHex);
     };
+
+    this.pcm.onConnectionRestored = (identityHex) => {
+      this.iceRestartAttempts.delete(identityHex);
+    };
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -96,6 +126,7 @@ export class SignalingManager {
     this.renegotiationTimers.clear();
     for (const t of this.restartTimers.values()) clearTimeout(t);
     this.restartTimers.clear();
+    this.iceRestartAttempts.clear();
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -145,6 +176,8 @@ export class SignalingManager {
       // Re-check after async gap.
       if (this.pcm.getPeer(toIdentityHex) !== pc) return;
       if (pc.signalingState !== 'stable') return;
+      // Prefer VP9 — better quality at low bandwidth than the VP8 default.
+      if (offer.sdp) offer.sdp = preferVideoCodec(offer.sdp, 'VP9');
       await pc.setLocalDescription(offer);
 
       const toIdentity = this.hexToIdentity(toIdentityHex);
@@ -191,12 +224,20 @@ export class SignalingManager {
     // Only the offerer (higher hex) initiates restart to avoid both sides restarting.
     if (this.myHex < identityHex) return;
 
+    const attempts = this.iceRestartAttempts.get(identityHex) ?? 0;
+    if (attempts >= 3) {
+      // Exhausted retries — tear down so a fresh reconnect can occur on the next signaling event.
+      this.teardownPeer(identityHex);
+      return;
+    }
+    this.iceRestartAttempts.set(identityHex, attempts + 1);
+
     const t = setTimeout(() => {
       this.restartTimers.delete(identityHex);
       const pc = this.pcm.getPeer(identityHex);
       if (!pc) return;
       this.sendIceRestartOffer(identityHex).catch(() => {});
-    }, 2000);
+    }, 500);
 
     this.restartTimers.set(identityHex, t);
   }
@@ -208,6 +249,7 @@ export class SignalingManager {
     try {
       const offer = await pc.createOffer({ iceRestart: true });
       if (this.pcm.getPeer(identityHex) !== pc) return;
+      if (offer.sdp) offer.sdp = preferVideoCodec(offer.sdp, 'VP9');
       await pc.setLocalDescription(offer);
       const toIdentity = this.hexToIdentity(identityHex);
       if (!toIdentity) return;
@@ -352,6 +394,7 @@ export class SignalingManager {
     this.pendingCandidates.delete(identityHex);
     this.offerLocks.delete(identityHex);
     this.makingOffer.delete(identityHex);
+    this.iceRestartAttempts.delete(identityHex);
     this.pcm.removePeer(identityHex);
   }
 
