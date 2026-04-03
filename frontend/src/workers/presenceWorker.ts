@@ -52,7 +52,7 @@ interface WorkerResultMessage {
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
-let landmarker: FaceLandmarker | null = null;
+let landmarker: InstanceType<typeof FaceLandmarker> | null = null;
 let noFaceFrames = 0;
 let eyesClosedFrames = 0;
 
