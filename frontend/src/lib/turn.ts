@@ -11,7 +11,9 @@ export interface TurnCredentials {
 
 export async function getTurnCredentials(): Promise<TurnCredentials> {
   try {
-    const response = await fetch('/api/turn-credentials');
+    const response = await fetch('/api/turn-credentials', {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
 
     if (!response.ok) {
       console.warn('Failed to fetch TURN credentials:', response.status);
