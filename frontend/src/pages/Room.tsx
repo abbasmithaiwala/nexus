@@ -16,6 +16,7 @@ import { useRoomId } from '@/hooks/useRoomId';
 import { useParticipants } from '@/hooks/useParticipants';
 import { useRoomLifecycle } from '@/hooks/useRoomLifecycle';
 import { useMediaStateSync } from '@/hooks/useMediaStateSync';
+import { usePresenceSync } from '@/hooks/usePresenceSync';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { useReactions } from '@/hooks/useReactions';
 import { useChatMessages } from '@/hooks/useChatMessages';
@@ -68,6 +69,7 @@ export function RoomPage() {
     videoEnabled: local.videoEnabled,
     isScreenSharing: local.isScreenSharing,
   });
+  usePresenceSync(db, roomId, local.stream);
 
   // ── Redirect to lobby if not a participant ────────────────────────────────
   // Three-state: null = not yet determined, true/false = result of check.

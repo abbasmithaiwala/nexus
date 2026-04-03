@@ -16,6 +16,9 @@ import { memo, useEffect, useRef } from 'react';
 import { MicOff } from 'lucide-react';
 import type { FloatingReaction } from '@/hooks/useReactions';
 
+/** 0=Unknown, 1=Active, 2=Away, 3=Drowsy — mirrors backend PresenceStatus enum. */
+export type PresenceStatusCode = 0 | 1 | 2 | 3;
+
 export interface VideoTileProps {
   stream: MediaStream | null;
   displayName: string;
@@ -27,6 +30,7 @@ export interface VideoTileProps {
   isSpeaking?: boolean;
   mirrored?: boolean;
   floatingReactions?: FloatingReaction[];
+  presenceStatus?: PresenceStatusCode;
 }
 
 function Initials({ name }: { name: string }) {
@@ -54,6 +58,12 @@ function playVideo(el: HTMLVideoElement): void {
   });
 }
 
+function presenceBorderClass(status: PresenceStatusCode | undefined): string {
+  if (status === 2) return 'ring-2 ring-red-500';        // Away — red ring
+  if (status === 3) return 'ring-2 ring-yellow-400/80';  // Drowsy — yellow ring
+  return '';
+}
+
 export const VideoTile = memo(function VideoTile({
   stream,
   displayName,
@@ -65,6 +75,7 @@ export const VideoTile = memo(function VideoTile({
   isSpeaking = false,
   mirrored = false,
   floatingReactions = [],
+  presenceStatus,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -85,9 +96,11 @@ export const VideoTile = memo(function VideoTile({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stream, trackIds]);
 
+  const presenceClass = presenceBorderClass(presenceStatus);
+
   return (
     <div
-      className={`relative w-full h-full bg-neutral-900 rounded-xl overflow-hidden flex items-center justify-center ${isSpeaking ? 'ring-2 ring-white/80' : ''
+      className={`relative w-full h-full bg-neutral-900 rounded-xl overflow-hidden flex items-center justify-center ${isSpeaking ? 'ring-2 ring-white/80' : presenceClass
         }`}
     >
       <video
@@ -139,6 +152,16 @@ export const VideoTile = memo(function VideoTile({
         {isLocal && (
           <span className="px-1.5 py-0.5 rounded bg-neutral-900/90 text-white text-xs font-semibold backdrop-blur-sm border border-neutral-800">
             You
+          </span>
+        )}
+        {presenceStatus === 2 && (
+          <span className="px-1.5 py-0.5 rounded bg-red-700/90 text-white text-xs font-semibold backdrop-blur-sm">
+            Away
+          </span>
+        )}
+        {presenceStatus === 3 && (
+          <span className="px-1.5 py-0.5 rounded bg-yellow-500/90 text-white text-xs font-semibold backdrop-blur-sm">
+            😴 Sleeping
           </span>
         )}
       </div>

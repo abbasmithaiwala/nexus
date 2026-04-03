@@ -8,9 +8,18 @@
 import { useMemo } from 'react';
 import type { Identity } from 'spacetimedb';
 import { VideoGrid } from '@/components/VideoGrid';
-import { VideoTile } from '@/components/VideoTile';
-import type { Participant } from '@/module_bindings/types';
+import { VideoTile, type PresenceStatusCode } from '@/components/VideoTile';
+import type { Participant, PresenceStatus } from '@/module_bindings/types';
 import type { FloatingReaction } from '@/hooks/useReactions';
+
+function presenceToCode(status: PresenceStatus | undefined): PresenceStatusCode {
+  if (!status) return 0;
+  const tag = (status as { tag: string }).tag;
+  if (tag === 'Active') return 1;
+  if (tag === 'Away') return 2;
+  if (tag === 'Drowsy') return 3;
+  return 0;
+}
 
 interface ParticipantGridProps {
   participants: Participant[];
@@ -75,6 +84,7 @@ export function ParticipantGrid({
             isHost={participant.isHost}
             mirrored={isLocal && !participant.mediaState.isScreenSharing}
             floatingReactions={floatingReactions.get(participant.identity.toHexString())}
+            presenceStatus={presenceToCode(participant.mediaState.presenceStatus)}
           />
         );
       })}
