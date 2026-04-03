@@ -5,6 +5,7 @@ import { Layout } from '@/components/Layout';
 import { HomePage } from '@/pages/Home';
 import { LobbyPage } from '@/pages/Lobby';
 import { RoomPage } from '@/pages/Room';
+import { LeftMeetingPage } from '@/pages/LeftMeeting';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/lobby/:roomCode" element={<LobbyPage />} />
               <Route path="/room/:roomCode" element={<RoomPage />} />
+              <Route path="/left/:roomCode" element={<LeftMeetingPage />} />
               {/* Catch-all → home */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

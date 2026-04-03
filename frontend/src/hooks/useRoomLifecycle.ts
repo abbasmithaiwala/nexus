@@ -52,7 +52,7 @@ export function useRoomLifecycle(
       if (newRow.roomCode === roomCodeRef.current && newRow.status.tag === 'Ended') {
         onRoomEndedRef.current?.();
         // Delay navigation slightly so the toast has time to render.
-        setTimeout(() => navigateRef.current('/'), 2000);
+        setTimeout(() => navigateRef.current(`/left/${roomCodeRef.current}`, { replace: true }), 2000);
       }
     }
 
@@ -64,15 +64,15 @@ export function useRoomLifecycle(
     if (db && roomId != null) {
       try { await db.reducers.leaveRoom({ roomId }); } catch { /* reducer ended the room */ }
     }
-    navigate('/');
-  }, [db, roomId, navigate]);
+    navigate(`/left/${roomCode}`, { replace: true });
+  }, [db, roomId, roomCode, navigate]);
 
   const handleEndMeeting = useCallback(async () => {
     if (db && roomId != null) {
       try { await db.reducers.endMeeting({ roomId }); } catch { /* ignore */ }
     }
-    navigate('/');
-  }, [db, roomId, navigate]);
+    navigate(`/left/${roomCode}`, { replace: true });
+  }, [db, roomId, roomCode, navigate]);
 
   return { handleLeave, handleEndMeeting };
 }

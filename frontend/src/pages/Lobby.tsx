@@ -45,6 +45,17 @@ export function LobbyPage() {
     });
   }
 
+  // ── Guard: redirect to left-meeting page if room is already ended ─────────
+  useEffect(() => {
+    if (!db || !isConnected || !roomCode) return;
+    for (const room of db.db.room.iter()) {
+      if (room.roomCode === roomCode && room.status.tag === 'Ended') {
+        navigate(`/left/${roomCode}`, { replace: true });
+        return;
+      }
+    }
+  }, [db, isConnected, roomCode, navigate]);
+
   // ── Join meeting ──────────────────────────────────────────────────────────
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState('');

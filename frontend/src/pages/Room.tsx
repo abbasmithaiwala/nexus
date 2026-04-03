@@ -71,7 +71,7 @@ export function RoomPage() {
   });
   usePresenceSync(db, roomId, local.stream);
 
-  // ── Redirect to lobby if not a participant ────────────────────────────────
+  // ── Redirect if not an active participant ─────────────────────────────────
   // Three-state: null = not yet determined, true/false = result of check.
   const [isParticipantChecked, setIsParticipantChecked] = useState<boolean | null>(null);
 
@@ -81,7 +81,18 @@ export function RoomPage() {
       (p) => p.leftAt == null && p.identity.isEqual(identity),
     );
     if (!isParticipant) {
-      navigate(`/lobby/${roomCode}`, { replace: true });
+      // Check whether this user previously had a participant row (left the room)
+      // vs. never joined at all (direct URL entry). If they have a leftAt row
+      // they already left — send to the post-call screen so back-nav can't
+      // silently drop them back into the room. Otherwise send to lobby to join.
+      const hadParticipantRow = [...db.db.participant.participant_by_room.filter(roomId)].some(
+        (p) => p.identity.isEqual(identity),
+      );
+      if (hadParticipantRow) {
+        navigate(`/left/${roomCode}`, { replace: true });
+      } else {
+        navigate(`/lobby/${roomCode}`, { replace: true });
+      }
     } else {
       setIsParticipantChecked(true);
     }
