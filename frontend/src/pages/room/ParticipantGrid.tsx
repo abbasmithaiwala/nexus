@@ -5,12 +5,13 @@
  * remote participants, and shows an empty-state message when alone.
  */
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import type { Identity } from 'spacetimedb';
 import { VideoGrid } from '@/components/VideoGrid';
 import { VideoTile, type PresenceStatusCode } from '@/components/VideoTile';
 import type { Participant, PresenceStatus } from '@/module_bindings/types';
 import type { FloatingReaction } from '@/hooks/useReactions';
+import { useAudioLevel } from '@/hooks/useAudioLevel';
 
 function presenceToCode(status: PresenceStatus | undefined): PresenceStatusCode {
   if (!status) return 0;
@@ -20,6 +21,40 @@ function presenceToCode(status: PresenceStatus | undefined): PresenceStatusCode 
   if (tag === 'Drowsy') return 3;
   return 0;
 }
+
+interface ParticipantTileProps {
+  participant: Participant;
+  stream: MediaStream | null;
+  isLocal: boolean;
+  floatingReactions: FloatingReaction[] | undefined;
+}
+
+/** Isolated component so each tile gets its own useAudioLevel hook instance. */
+const ParticipantTile = memo(function ParticipantTile({
+  participant,
+  stream,
+  isLocal,
+  floatingReactions,
+}: ParticipantTileProps) {
+  const isSpeaking = useAudioLevel(participant.mediaState.audioEnabled ? stream : null);
+
+  return (
+    <VideoTile
+      key={participant.participantId.toString()}
+      stream={stream}
+      displayName={participant.displayName}
+      audioEnabled={participant.mediaState.audioEnabled}
+      videoEnabled={participant.mediaState.videoEnabled}
+      isScreenSharing={participant.mediaState.isScreenSharing}
+      isLocal={isLocal}
+      isHost={participant.isHost}
+      isSpeaking={isSpeaking}
+      mirrored={isLocal && !participant.mediaState.isScreenSharing}
+      floatingReactions={floatingReactions}
+      presenceStatus={presenceToCode(participant.mediaState.presenceStatus)}
+    />
+  );
+});
 
 interface ParticipantGridProps {
   participants: Participant[];
@@ -73,18 +108,12 @@ export function ParticipantGrid({
           ? localStream
           : remoteStreams.get(participant.identity.toHexString()) ?? null;
         return (
-          <VideoTile
+          <ParticipantTile
             key={participant.participantId.toString()}
+            participant={participant}
             stream={stream}
-            displayName={participant.displayName}
-            audioEnabled={participant.mediaState.audioEnabled}
-            videoEnabled={participant.mediaState.videoEnabled}
-            isScreenSharing={participant.mediaState.isScreenSharing}
             isLocal={isLocal}
-            isHost={participant.isHost}
-            mirrored={isLocal && !participant.mediaState.isScreenSharing}
             floatingReactions={floatingReactions.get(participant.identity.toHexString())}
-            presenceStatus={presenceToCode(participant.mediaState.presenceStatus)}
           />
         );
       })}

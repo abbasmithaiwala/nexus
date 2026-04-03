@@ -25,6 +25,7 @@ export interface ControlsBarProps {
   isChatOpen: boolean;
   unreadCount: number;
   isHost: boolean;
+  isSpeaking?: boolean;
   onToggleAudio: () => void;
   onToggleVideo: () => void;
   onToggleScreenShare: () => void;
@@ -84,6 +85,7 @@ export function ControlsBar({
   isChatOpen,
   unreadCount,
   isHost,
+  isSpeaking = false,
   onToggleAudio,
   onToggleVideo,
   onToggleScreenShare,
@@ -110,12 +112,54 @@ export function ControlsBar({
       >
 
         {/* Media controls */}
-        <Btn
-          icon={audioEnabled ? <Mic style={{ width: 'var(--icon-size)', height: 'var(--icon-size)' }} /> : <MicOff style={{ width: 'var(--icon-size)', height: 'var(--icon-size)' }} />}
-          label={audioEnabled ? 'Mute mic' : 'Unmute mic'}
+        {/* Mic capsule — elongated pill matching Google Meet: [dots | mic icon] */}
+        <button
           onClick={onToggleAudio}
-          variant={audioEnabled ? 'default' : 'muted'}
-        />
+          title={audioEnabled ? 'Mute mic' : 'Unmute mic'}
+          aria-label={audioEnabled ? 'Mute mic' : 'Unmute mic'}
+          className={`relative flex items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 text-white ${
+            audioEnabled ? 'bg-neutral-800 hover:bg-neutral-700' : 'bg-red-600/90 hover:bg-red-500'
+          }`}
+          style={{
+            height: 'clamp(2.25rem, 9dvw, 3rem)',
+            // Fixed widths so CSS can animate the transition (auto → auto can't animate)
+            width: audioEnabled ? 'clamp(4.5rem, 18dvw, 5.5rem)' : 'clamp(2.25rem, 9dvw, 3rem)',
+            paddingLeft: audioEnabled ? 'clamp(0.6rem, 2dvw, 0.85rem)' : undefined,
+            paddingRight: audioEnabled ? 'clamp(0.5rem, 1.5dvw, 0.65rem)' : undefined,
+            gap: audioEnabled ? 'clamp(0.35rem, 1.5dvw, 0.6rem)' : undefined,
+            transition: 'width 250ms ease, padding 250ms ease, background-color 150ms ease',
+          }}
+        >
+          {/* Left side: dots at rest → wave bars when speaking (hidden when muted) */}
+          {audioEnabled && (
+            <div
+              className="flex items-center justify-center shrink-0"
+              style={{ width: 14, height: 14, gap: 2, transition: 'opacity 200ms ease', opacity: audioEnabled ? 1 : 0 }}
+            >
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className={`block rounded-full transition-colors duration-150 ${isSpeaking ? 'bg-white' : 'bg-neutral-400'}`}
+                  style={{
+                    width: 3,
+                    transformOrigin: 'center',
+                    ...(isSpeaking
+                      ? {
+                          height: '100%',
+                          animation: `mic-bar 0.65s ease-in-out ${i * 0.13}s infinite alternate`,
+                        }
+                      : { height: 3 }),
+                  }}
+                />
+              ))}
+            </div>
+          )}
+          {/* Mic icon */}
+          {audioEnabled
+            ? <Mic style={{ width: 'var(--icon-size)', height: 'var(--icon-size)' }} />
+            : <MicOff style={{ width: 'var(--icon-size)', height: 'var(--icon-size)' }} />
+          }
+        </button>
         <Btn
           icon={videoEnabled ? <Video style={{ width: 'var(--icon-size)', height: 'var(--icon-size)' }} /> : <VideoOff style={{ width: 'var(--icon-size)', height: 'var(--icon-size)' }} />}
           label={videoEnabled ? 'Stop camera' : 'Start camera'}

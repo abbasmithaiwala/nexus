@@ -33,15 +33,24 @@ export interface VideoTileProps {
   presenceStatus?: PresenceStatusCode;
 }
 
-function Initials({ name }: { name: string }) {
+function Initials({ name, isSpeaking }: { name: string; isSpeaking?: boolean }) {
   const initials = name
     .split(' ')
     .map((w) => w[0]?.toUpperCase() ?? '')
     .slice(0, 2)
     .join('');
   return (
-    <div className="w-16 h-16 rounded-full bg-neutral-800 flex items-center justify-center text-white text-2xl font-semibold select-none border border-neutral-700">
-      {initials || '?'}
+    <div className="relative flex items-center justify-center">
+      {/* Pulsing rings — two layers like Google Meet */}
+      {isSpeaking && (
+        <>
+          <span className="absolute inset-0 rounded-full ring-2 ring-white/60 animate-[speaking-ring_1.2s_ease-out_infinite]" />
+          <span className="absolute inset-0 rounded-full ring-2 ring-white/30 animate-[speaking-ring_1.2s_ease-out_0.4s_infinite]" />
+        </>
+      )}
+      <div className={`w-16 h-16 rounded-full bg-neutral-800 flex items-center justify-center text-white text-2xl font-semibold select-none transition-all duration-150 ${isSpeaking ? 'ring-2 ring-white border-transparent' : 'border border-neutral-700'}`}>
+        {initials || '?'}
+      </div>
     </div>
   );
 }
@@ -100,7 +109,7 @@ export const VideoTile = memo(function VideoTile({
 
   return (
     <div
-      className={`relative w-full h-full bg-neutral-900 rounded-xl overflow-hidden flex items-center justify-center ${isSpeaking ? 'ring-2 ring-white/80' : presenceClass
+      className={`relative w-full h-full bg-neutral-900 rounded-xl overflow-hidden flex items-center justify-center ${isSpeaking ? 'ring-[3px] ring-white/90 animate-[speaking-tile_1.4s_ease-in-out_infinite]' : presenceClass
         }`}
     >
       <video
@@ -114,7 +123,7 @@ export const VideoTile = memo(function VideoTile({
 
       {((!videoEnabled && !isScreenSharing) || !stream) && (
         <div className="flex flex-col items-center gap-2">
-          <Initials name={displayName} />
+          <Initials name={displayName} isSpeaking={isSpeaking} />
           <span className="text-neutral-300 text-sm font-medium">{displayName}</span>
         </div>
       )}

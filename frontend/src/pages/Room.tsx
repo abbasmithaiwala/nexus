@@ -22,6 +22,7 @@ import { useReactions } from '@/hooks/useReactions';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { playJoinSound, playLeaveSound } from '@/lib/sounds';
+import { useAudioLevel } from '@/hooks/useAudioLevel';
 
 import { ControlsBar } from '@/components/ControlsBar';
 import { ReactionsPanel } from '@/components/ReactionsPanel';
@@ -36,6 +37,7 @@ export function RoomPage() {
   const { toasts, showToast, dismiss, registerExitTrigger } = useToast();
 
   const local = useLocalStream();
+  const isLocalSpeaking = useAudioLevel(local.audioEnabled ? local.stream : null);
   const roomId = useRoomId(db, roomCode);
 
   const handleParticipantJoin = useCallback((p: Participant) => {
@@ -241,6 +243,7 @@ export function RoomPage() {
           isChatOpen={isChatOpen}
           unreadCount={unreadCount}
           isHost={isHost}
+          isSpeaking={isLocalSpeaking}
           onToggleAudio={local.toggleAudio}
           onToggleVideo={local.toggleVideo}
           onToggleScreenShare={handleToggleScreenShare}
