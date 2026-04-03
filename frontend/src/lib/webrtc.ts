@@ -31,9 +31,16 @@ export class PeerConnectionManager {
   onNegotiationNeeded: ((identityHex: string) => void) | null = null;
   onConnectionFailed: ((identityHex: string) => void) | null = null;
   onConnectionRestored: ((identityHex: string) => void) | null = null;
+  onIceServersUpdated: ((identityHex: string) => void) | null = null;
 
   setIceServers(servers: RTCIceServer[]): void {
     this.extraIceServers = servers;
+    // Notify SignalingManager to restart ICE on any existing connections that
+    // were created before TURN credentials arrived — they used STUN-only and
+    // may have failed to traverse NAT.
+    for (const [identityHex] of this.peers) {
+      this.onIceServersUpdated?.(identityHex);
+    }
   }
 
   setLocalStream(stream: MediaStream): void {

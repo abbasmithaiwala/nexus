@@ -108,6 +108,14 @@ export class SignalingManager {
     this.pcm.onConnectionRestored = (identityHex) => {
       this.iceRestartAttempts.delete(identityHex);
     };
+
+    // TURN credentials arrived after the peer was already created with STUN-only.
+    // Only the offerer restarts to avoid both sides restarting simultaneously.
+    this.pcm.onIceServersUpdated = (identityHex) => {
+      if (this.myHex > identityHex) {
+        this.scheduleIceRestart(identityHex);
+      }
+    };
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -150,6 +158,12 @@ export class SignalingManager {
       this.sendOffer(identityHex).catch(() => {});
     } else {
       // I am the answerer: add the peer, then replay any cached messages.
+      // Skip replay if the peer was already established via a live onInsert
+      // (i.e. the offer arrived before handleNewParticipant fired — this
+      // happens when processOffer lazily creates the peer, which occurs when
+      // the local stream isn't ready yet and the participant effect deferred).
+      // Replaying an offer onto an already-connected peer tears it down.
+      if (this.remoteDescSet.has(identityHex)) return;
       this.pcm.addPeer(identityHex);
       this.replayForPeer(identityHex);
     }

@@ -60,12 +60,15 @@ export function useWebRTC(
     const sig = new SignalingManager(db, identity, roomId, pcm);
     sigRef.current = sig;
 
+    // Start signaling immediately so onInsert is registered before any
+    // participant effect fires — avoids missing offers/answers during the
+    // async TURN credential fetch.
+    sig.start();
+
     getTurnCredentials().then(({ iceServers }) => {
       if (iceServers.length > 0) pcm.setIceServers(iceServers);
-      sig.start();
     }).catch(() => {
-      // Fall back to STUN-only if credentials fetch fails
-      sig.start();
+      // Fall back to STUN-only — sig is already started above.
     });
 
     return () => {
