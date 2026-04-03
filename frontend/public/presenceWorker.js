@@ -41,17 +41,36 @@ async function init() {
   const vision = await FilesetResolver.forVisionTasks(
     'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34/wasm',
   );
-  landmarker = await FaceLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath:
-        'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-      delegate: 'GPU',
-    },
-    outputFaceBlendshapes: false,
-    outputFacialTransformationMatrixes: false,
-    runningMode: 'IMAGE',
-    numFaces: 1,
-  });
+
+  // Try GPU first; fall back to CPU if the GPU delegate fails (e.g. partial
+  // binary download causes a RangeError during delegate initialisation).
+  try {
+    landmarker = await FaceLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath:
+          'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+        delegate: 'GPU',
+      },
+      outputFaceBlendshapes: false,
+      outputFacialTransformationMatrixes: false,
+      runningMode: 'IMAGE',
+      numFaces: 1,
+    });
+  } catch (gpuErr) {
+    console.warn('[presenceWorker] GPU delegate failed, retrying with CPU:', gpuErr);
+    landmarker = await FaceLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath:
+          'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+        delegate: 'CPU',
+      },
+      outputFaceBlendshapes: false,
+      outputFacialTransformationMatrixes: false,
+      runningMode: 'IMAGE',
+      numFaces: 1,
+    });
+  }
+
   self.postMessage({ type: 'ready' });
 }
 
@@ -62,6 +81,9 @@ function processFrame(bitmap) {
   let result;
   try {
     result = landmarker.detect(bitmap);
+  } catch (err) {
+    console.error('[presenceWorker] detect failed:', err);
+    return;
   } finally {
     bitmap.close();
   }
