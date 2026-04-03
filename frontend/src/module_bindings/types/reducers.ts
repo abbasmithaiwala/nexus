@@ -18,6 +18,7 @@ import SendIceCandidateReducer from "../send_ice_candidate_reducer";
 import SendOfferReducer from "../send_offer_reducer";
 import SendReactionReducer from "../send_reaction_reducer";
 import UpdateMediaStateReducer from "../update_media_state_reducer";
+import UpdatePresenceStatusReducer from "../update_presence_status_reducer";
 
 export type CleanupSignalingParams = __Infer<typeof CleanupSignalingReducer>;
 export type CreateRoomParams = __Infer<typeof CreateRoomReducer>;
@@ -31,4 +32,5 @@ export type SendIceCandidateParams = __Infer<typeof SendIceCandidateReducer>;
 export type SendOfferParams = __Infer<typeof SendOfferReducer>;
 export type SendReactionParams = __Infer<typeof SendReactionReducer>;
 export type UpdateMediaStateParams = __Infer<typeof UpdateMediaStateReducer>;
+export type UpdatePresenceStatusParams = __Infer<typeof UpdatePresenceStatusReducer>;
 

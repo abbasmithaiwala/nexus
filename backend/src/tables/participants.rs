@@ -1,10 +1,25 @@
 use spacetimedb::{Identity, SpacetimeType, Timestamp};
 
+/// Presence state detected client-side via face landmark analysis.
+/// Each participant detects their own face and reports status here.
+#[derive(SpacetimeType, Clone, Debug, PartialEq)]
+pub enum PresenceStatus {
+    /// Default — camera off or detection not yet initialized.
+    Unknown,
+    /// Face detected, eyes open — participant is active.
+    Active,
+    /// No face detected for >30 s — participant stepped away.
+    Away,
+    /// Eyes closed / low EAR for >3 s — participant appears drowsy/asleep.
+    Drowsy,
+}
+
 #[derive(SpacetimeType, Clone, Debug, PartialEq)]
 pub struct MediaState {
     pub audio_enabled: bool,
     pub video_enabled: bool,
     pub is_screen_sharing: bool,
+    pub presence_status: PresenceStatus,
 }
 
 #[spacetimedb::table(accessor = participant, public,

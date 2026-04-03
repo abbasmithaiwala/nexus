@@ -3,7 +3,7 @@ use spacetimedb::{reducer, Table, ReducerContext};
 use crate::tables::{
     users::{User, user},
     rooms::{Room, RoomStatus, room},
-    participants::{Participant, MediaState, participant},
+    participants::{Participant, MediaState, PresenceStatus, participant},
     room_events::{RoomEvent, EventType, room_event},
     signaling::signaling_message,
 };
@@ -105,6 +105,7 @@ pub fn create_room(ctx: &ReducerContext, display_name: String) -> Result<(), Str
             audio_enabled: true,
             video_enabled: true,
             is_screen_sharing: false,
+            presence_status: PresenceStatus::Unknown,
         },
     });
 
@@ -178,6 +179,7 @@ pub fn join_room(ctx: &ReducerContext, room_code: String, display_name: String) 
             audio_enabled: true,
             video_enabled: true,
             is_screen_sharing: false,
+            presence_status: PresenceStatus::Unknown,
         },
     });
 

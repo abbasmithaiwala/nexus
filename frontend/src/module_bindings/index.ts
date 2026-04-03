@@ -46,6 +46,7 @@ import SendIceCandidateReducer from "./send_ice_candidate_reducer";
 import SendOfferReducer from "./send_offer_reducer";
 import SendReactionReducer from "./send_reaction_reducer";
 import UpdateMediaStateReducer from "./update_media_state_reducer";
+import UpdatePresenceStatusReducer from "./update_presence_status_reducer";
 
 // Import all procedure arg schemas
 
@@ -63,6 +64,9 @@ const tablesSchema = __schema({
   participant: __table({
     name: 'participant',
     indexes: [
+      { accessor: 'participant_by_identity', name: 'participant_identity_idx_btree', algorithm: 'btree', columns: [
+        'identity',
+      ] },
       { accessor: 'participant_id', name: 'participant_participant_id_idx_btree', algorithm: 'btree', columns: [
         'participantId',
       ] },
@@ -147,6 +151,7 @@ const reducersSchema = __reducers(
   __reducerSchema("send_offer", SendOfferReducer),
   __reducerSchema("send_reaction", SendReactionReducer),
   __reducerSchema("update_media_state", UpdateMediaStateReducer),
+  __reducerSchema("update_presence_status", UpdatePresenceStatusReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

@@ -10,6 +10,12 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const ChatRateLimit = __t.object("ChatRateLimit", {
+  identity: __t.identity(),
+  lastMessageAt: __t.timestamp(),
+});
+export type ChatRateLimit = __Infer<typeof ChatRateLimit>;
+
 // The tagged union or sum type for the algebraic type `EventType`.
 export const EventType = __t.enum("EventType", {
   MeetingStarted: __t.unit(),
@@ -26,6 +32,9 @@ export const MediaState = __t.object("MediaState", {
   audioEnabled: __t.bool(),
   videoEnabled: __t.bool(),
   isScreenSharing: __t.bool(),
+  get presenceStatus() {
+    return PresenceStatus;
+  },
 });
 export type MediaState = __Infer<typeof MediaState>;
 
@@ -42,6 +51,15 @@ export const Participant = __t.object("Participant", {
   },
 });
 export type Participant = __Infer<typeof Participant>;
+
+// The tagged union or sum type for the algebraic type `PresenceStatus`.
+export const PresenceStatus = __t.enum("PresenceStatus", {
+  Unknown: __t.unit(),
+  Active: __t.unit(),
+  Away: __t.unit(),
+  Drowsy: __t.unit(),
+});
+export type PresenceStatus = __Infer<typeof PresenceStatus>;
 
 export const Room = __t.object("Room", {
   roomId: __t.u64(),
