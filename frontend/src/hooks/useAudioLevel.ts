@@ -40,7 +40,7 @@ export function useAudioLevel(stream: MediaStream | null): boolean {
     let ctx: AudioContext | null = null;
     let analyser: AnalyserNode | null = null;
     let source: MediaStreamAudioSourceNode | null = null;
-    let dataArray: Uint8Array | null = null;
+    let dataArray: Uint8Array<ArrayBuffer> | null = null;
 
     try {
       ctx = new AudioContext();
@@ -49,7 +49,7 @@ export function useAudioLevel(stream: MediaStream | null): boolean {
       analyser.smoothingTimeConstant = 0.3;
       source = ctx.createMediaStreamSource(stream);
       source.connect(analyser);
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
+      dataArray = new Uint8Array(analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
     } catch {
       // Web Audio not available (e.g. unit test environment)
       return;
