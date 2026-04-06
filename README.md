@@ -21,6 +21,7 @@ SpaceTimeDB Module (Rust → WASM)
 - **Backend:** Rust SpaceTimeDB module (compiled to WASM)
 - **Realtime/DB:** SpaceTimeDB (signaling + room state + events)
 - **WebRTC:** Mesh P2P (pure browser APIs, no media server)
+- **TURN:** Cloudflare Calls TURN (server-side credential generation via Vercel API route, rate-limited with Vercel KV)
 - **Auth:** SpaceTimeDB built-in cryptographic identity (display name only)
 
 ## Quick Start
@@ -70,9 +71,15 @@ Copy `frontend/.env.example` to `frontend/.env`:
 |----------|---------|-------------|
 | `VITE_SPACETIMEDB_URL` | `wss://maincloud.spacetimedb.com` | SpaceTimeDB server URL |
 | `VITE_SPACETIMEDB_MODULE` | `nexus` | Module/database name |
-| `VITE_TURN_URL` | _(empty)_ | TURN server URL (optional) |
-| `VITE_TURN_USERNAME` | _(empty)_ | TURN username |
-| `VITE_TURN_CREDENTIAL` | _(empty)_ | TURN credential |
+
+TURN credentials are generated server-side and never exposed to the client. Set the following in your **Vercel dashboard** (not in `.env`):
+
+| Variable | Description |
+|----------|-------------|
+| `CLOUDFLARE_TURN_KEY_ID` | Cloudflare Calls TURN key ID |
+| `CLOUDFLARE_TURN_API_TOKEN` | Cloudflare Calls TURN API token |
+| `KV_REST_API_URL` | Vercel KV URL (auto-injected when KV store is linked) |
+| `KV_REST_API_TOKEN` | Vercel KV token (auto-injected when KV store is linked) |
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for TURN server setup.
 
@@ -89,6 +96,8 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for TURN server setup.
 - Exponential backoff reconnection to SpaceTimeDB
 - Toast notifications for connection and permission errors
 - Server-side rate limiting (1 chat message/sec per identity)
+- **Cloudflare TURN** — ephemeral credentials generated server-side on each call for improved NAT traversal
+- **Realtime presence detection** — tracks participant attention state (active, drowsy, away) using MediaPipe Face Landmarker (Eye Aspect Ratio) running in a Web Worker; status is synced live and displayed on all video tiles
 
 ## Project Structure
 
